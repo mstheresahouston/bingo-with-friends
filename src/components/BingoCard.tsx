@@ -96,14 +96,23 @@ export const BingoCard = ({ card, calls, winCondition }: BingoCardProps) => {
     <div className="bg-gradient-to-br from-card to-background rounded-lg border-2 border-secondary p-4">
       {/* BINGO Header */}
       <div className="grid grid-cols-5 gap-2 mb-2">
-        {['B', 'I', 'N', 'G', 'O'].map((letter) => (
-          <div
-            key={letter}
-            className="aspect-square rounded-lg font-heading text-xl md:text-2xl font-bold flex items-center justify-center bg-primary text-primary-foreground border-2 border-primary"
-          >
-            {letter}
-          </div>
-        ))}
+        {['B', 'I', 'N', 'G', 'O'].map((letter, idx) => {
+          const colors = [
+            'bg-[hsl(280,60%,50%)] border-[hsl(280,60%,50%)]', // B - Purple
+            'bg-[hsl(320,60%,55%)] border-[hsl(320,60%,55%)]', // I - Pink
+            'bg-[hsl(0,60%,55%)] border-[hsl(0,60%,55%)]',     // N - Red
+            'bg-[hsl(40,70%,55%)] border-[hsl(40,70%,55%)]',   // G - Orange
+            'bg-[hsl(200,60%,55%)] border-[hsl(200,60%,55%)]', // O - Blue
+          ];
+          return (
+            <div
+              key={letter}
+              className={`aspect-square rounded-lg font-heading text-xl md:text-2xl font-bold flex items-center justify-center text-white border-2 ${colors[idx]}`}
+            >
+              {letter}
+            </div>
+          );
+        })}
       </div>
       
       {/* Bingo Grid */}
