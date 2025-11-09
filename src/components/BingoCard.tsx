@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,11 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
   const cardData = card.card_data;
 
   const calledValues = calls.map((call) => call.call_value);
+
+  // Update local state when card.marked_cells changes (e.g., after reset)
+  useEffect(() => {
+    setMarkedCells(card.marked_cells || []);
+  }, [card.marked_cells]);
 
   // Determine which cells are part of the winning pattern
   const isPartOfPattern = (rowIndex: number, colIndex: number): boolean => {
