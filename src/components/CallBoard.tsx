@@ -24,6 +24,8 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
   const autoCallTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const generateCall = async () => {
+    if (isGenerating) return; // Prevent duplicate calls
+    
     setIsGenerating(true);
     try {
       let items: string[] = [];
@@ -48,7 +50,6 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
           title: "All Items Called",
           description: `All ${gameRoom.game_type} have been called!`,
         });
-        setIsGenerating(false);
         return;
       }
 
@@ -91,28 +92,33 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
 
   // Auto-call functionality
   useEffect(() => {
-    // Stop auto-call if game has ended (has winner)
-    if (isHost && isAutoCall && calls.length > 0 && !hasWinner) {
-      // Clear any existing timer
+    // Clear any existing timer when auto-call is toggled off or game ends
+    if (!isAutoCall || hasWinner || !isHost) {
       if (autoCallTimerRef.current) {
         clearTimeout(autoCallTimerRef.current);
+        autoCallTimerRef.current = null;
       }
+      return;
+    }
 
-      // Set up new timer based on speed (speed is in seconds)
+    // Only set up timer if auto-call is enabled and no timer is running
+    if (isAutoCall && isHost && !hasWinner && !autoCallTimerRef.current) {
       autoCallTimerRef.current = setTimeout(() => {
-        if (!isGenerating) {
-          generateCall();
-        }
+        generateCall().then(() => {
+          // Clear timer reference after call is made
+          autoCallTimerRef.current = null;
+        });
       }, callSpeed * 1000);
     }
 
-    // Cleanup timer on unmount or when auto-call is disabled or game has winner
+    // Cleanup on unmount
     return () => {
       if (autoCallTimerRef.current) {
         clearTimeout(autoCallTimerRef.current);
+        autoCallTimerRef.current = null;
       }
     };
-  }, [isHost, isAutoCall, callSpeed, calls.length, isGenerating, hasWinner]);
+  }, [isHost, isAutoCall, callSpeed, isGenerating, hasWinner]);
 
   return (
     <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
