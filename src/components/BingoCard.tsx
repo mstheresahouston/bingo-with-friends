@@ -8,9 +8,11 @@ interface BingoCardProps {
   card: any;
   calls: any[];
   winCondition: string;
+  playerId: string;
+  playerName: string;
 }
 
-export const BingoCard = ({ card, calls, winCondition }: BingoCardProps) => {
+export const BingoCard = ({ card, calls, winCondition, playerId, playerName }: BingoCardProps) => {
   const [markedCells, setMarkedCells] = useState<number[]>(card.marked_cells || []);
   const { toast } = useToast();
   const cardData = card.card_data;
@@ -48,9 +50,24 @@ export const BingoCard = ({ card, calls, winCondition }: BingoCardProps) => {
     // Check for bingo
     if (checkBingo(newMarkedCells)) {
       playBingoSound();
+      
+      // Update player score
+      const { data: playerData } = await supabase
+        .from("players")
+        .select("score")
+        .eq("id", playerId)
+        .single();
+
+      if (playerData) {
+        await supabase
+          .from("players")
+          .update({ score: playerData.score + 1 })
+          .eq("id", playerId);
+      }
+      
       toast({
         title: "🎉 BINGO!",
-        description: "Congratulations! You got a bingo!",
+        description: "Congratulations! You got a bingo! Your score has been updated.",
       });
     }
   };

@@ -133,11 +133,22 @@ const GameBoard = () => {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "UPDATE",
           schema: "public",
           table: "players",
         },
-        () => {
+        async (payload) => {
+          // Check if score was updated
+          if (payload.new.score > payload.old.score) {
+            const { data: { user } } = await supabase.auth.getUser();
+            // Only show announcement if it's not the current user
+            if (user && user.id !== payload.new.user_id) {
+              toast({
+                title: "🎉 BINGO!",
+                description: `${payload.new.player_name} just got BINGO!`,
+              });
+            }
+          }
           loadGameData();
         }
       )
@@ -206,6 +217,8 @@ const GameBoard = () => {
                     card={card} 
                     calls={calls}
                     winCondition={gameRoom.win_condition}
+                    playerId={player?.id}
+                    playerName={player?.player_name}
                   />
                 ))}
               </CardContent>
