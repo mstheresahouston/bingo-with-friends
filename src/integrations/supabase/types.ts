@@ -81,6 +81,8 @@ export type Database = {
       game_rooms: {
         Row: {
           created_at: string
+          diagonal_winner_id: string | null
+          four_corners_winner_id: string | null
           game_type: string
           host_id: string | null
           id: string
@@ -88,6 +90,7 @@ export type Database = {
           praise_dollar_value: number
           room_code: string
           status: string
+          straight_winner_id: string | null
           updated_at: string
           win_condition: string
           winner_announced_at: string | null
@@ -95,6 +98,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          diagonal_winner_id?: string | null
+          four_corners_winner_id?: string | null
           game_type?: string
           host_id?: string | null
           id?: string
@@ -102,6 +107,7 @@ export type Database = {
           praise_dollar_value?: number
           room_code: string
           status?: string
+          straight_winner_id?: string | null
           updated_at?: string
           win_condition?: string
           winner_announced_at?: string | null
@@ -109,6 +115,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          diagonal_winner_id?: string | null
+          four_corners_winner_id?: string | null
           game_type?: string
           host_id?: string | null
           id?: string
@@ -116,6 +124,7 @@ export type Database = {
           praise_dollar_value?: number
           room_code?: string
           status?: string
+          straight_winner_id?: string | null
           updated_at?: string
           win_condition?: string
           winner_announced_at?: string | null

@@ -284,6 +284,9 @@ const GameBoard = () => {
         .update({ 
           winner_player_id: null,
           winner_announced_at: null,
+          four_corners_winner_id: null,
+          straight_winner_id: null,
+          diagonal_winner_id: null,
           multi_game_progress: {
             four_corners: false,
             straight: false,

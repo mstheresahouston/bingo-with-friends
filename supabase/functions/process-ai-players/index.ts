@@ -191,7 +191,7 @@ serve(async (req) => {
           // Check all four patterns and award prizes for each
           const { data: roomCheck } = await supabaseClient
             .from('game_rooms')
-            .select('multi_game_progress, praise_dollar_value')
+            .select('multi_game_progress, praise_dollar_value, four_corners_winner_id, straight_winner_id, diagonal_winner_id, winner_player_id')
             .eq('id', roomId)
             .single()
           
@@ -201,20 +201,22 @@ serve(async (req) => {
           let updatedProgress = { ...progress }
           let prizesWon = 0
           const markedSet = new Set(markedCells)
+          const updateData: any = {}
           
           // Check four corners (if not already won)
-          if (!progress.four_corners) {
+          if (!progress.four_corners && !roomCheck.four_corners_winner_id) {
             const corners = [0, 4, 20, 24]
             const hasFourCorners = corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree)
             if (hasFourCorners) {
               console.log(`${aiPlayer.player_name} completed Four Corners!`)
               updatedProgress.four_corners = true
+              updateData.four_corners_winner_id = aiPlayer.id
               prizesWon += 125
             }
           }
           
           // Check straight line (if not already won)
-          if (!progress.straight) {
+          if (!progress.straight && !roomCheck.straight_winner_id) {
             let hasStraightLine = false
             for (let i = 0; i < 5; i++) {
               let rowComplete = true
@@ -233,12 +235,13 @@ serve(async (req) => {
             if (hasStraightLine) {
               console.log(`${aiPlayer.player_name} completed Straight Line!`)
               updatedProgress.straight = true
+              updateData.straight_winner_id = aiPlayer.id
               prizesWon += 100
             }
           }
           
           // Check diagonal (if not already won)
-          if (!progress.diagonal) {
+          if (!progress.diagonal && !roomCheck.diagonal_winner_id) {
             let diag1Complete = true
             let diag2Complete = true
             for (let i = 0; i < 5; i++) {
@@ -250,12 +253,13 @@ serve(async (req) => {
             if (diag1Complete || diag2Complete) {
               console.log(`${aiPlayer.player_name} completed Diagonal!`)
               updatedProgress.diagonal = true
+              updateData.diagonal_winner_id = aiPlayer.id
               prizesWon += 100
             }
           }
           
           // Check coverall (if not already won)
-          if (!progress.coverall) {
+          if (!progress.coverall && !roomCheck.winner_player_id) {
             let hasCoverall = true
             for (let i = 0; i < 5; i++) {
               for (let j = 0; j < 5; j++) {
@@ -270,15 +274,18 @@ serve(async (req) => {
             if (hasCoverall) {
               console.log(`${aiPlayer.player_name} completed Coverall!`)
               updatedProgress.coverall = true
+              updateData.winner_player_id = aiPlayer.id
+              updateData.winner_announced_at = new Date().toISOString()
               prizesWon += 350
             }
           }
           
           // Update progress if any new patterns were completed
           if (prizesWon > 0) {
+            updateData.multi_game_progress = updatedProgress
             await supabaseClient
               .from('game_rooms')
-              .update({ multi_game_progress: updatedProgress })
+              .update(updateData)
               .eq('id', roomId)
             
             // Award prizes for completed patterns
@@ -291,28 +298,6 @@ serve(async (req) => {
               .eq('id', aiPlayer.id)
             
             console.log(`${aiPlayer.player_name} won $${prizesWon} Praise Dollars!`)
-          }
-          
-          // Check if all four are complete to end game
-          if (updatedProgress.four_corners && updatedProgress.straight && updatedProgress.diagonal && updatedProgress.coverall) {
-            console.log('Multi-game complete! All patterns achieved.')
-            
-            // Only set winner if not already set
-            const { data: finalCheck } = await supabaseClient
-              .from('game_rooms')
-              .select('winner_player_id')
-              .eq('id', roomId)
-              .single()
-            
-            if (finalCheck && !finalCheck.winner_player_id) {
-              await supabaseClient
-                .from('game_rooms')
-                .update({
-                  winner_player_id: aiPlayer.id,
-                  winner_announced_at: new Date().toISOString(),
-                })
-                .eq('id', roomId)
-            }
           }
         } else {
           // Regular single-pattern bingo

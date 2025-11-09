@@ -163,16 +163,27 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
         const markedSet = new Set(markedCells);
         let patternWon: string | null = null;
         let prizeAmount = 0;
+        const updateData: any = {};
+
+        // Fetch current winner states
+        const { data: winnerCheck } = await supabase
+          .from("game_rooms")
+          .select("four_corners_winner_id, straight_winner_id, diagonal_winner_id, winner_player_id")
+          .eq("id", playerData.room_id)
+          .single();
+
+        if (!winnerCheck) throw new Error("Room not found");
 
         // Determine which pattern was completed
-        if (!progress.four_corners) {
+        if (!progress.four_corners && !winnerCheck.four_corners_winner_id) {
           const corners = [0, 4, 20, 24];
           if (corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree)) {
             patternWon = 'four_corners';
             prizeAmount = 125;
+            updateData.four_corners_winner_id = playerId;
           }
         }
-        if (!patternWon && !progress.straight) {
+        if (!patternWon && !progress.straight && !winnerCheck.straight_winner_id) {
           for (let i = 0; i < 5; i++) {
             let rowComplete = true;
             let colComplete = true;
@@ -185,11 +196,12 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
             if (rowComplete || colComplete) {
               patternWon = 'straight';
               prizeAmount = 100;
+              updateData.straight_winner_id = playerId;
               break;
             }
           }
         }
-        if (!patternWon && !progress.diagonal) {
+        if (!patternWon && !progress.diagonal && !winnerCheck.diagonal_winner_id) {
           let diag1Complete = true;
           let diag2Complete = true;
           for (let i = 0; i < 5; i++) {
@@ -201,9 +213,10 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
           if (diag1Complete || diag2Complete) {
             patternWon = 'diagonal';
             prizeAmount = 100;
+            updateData.diagonal_winner_id = playerId;
           }
         }
-        if (!patternWon && !progress.coverall) {
+        if (!patternWon && !progress.coverall && !winnerCheck.winner_player_id) {
           let hasCoverall = true;
           for (let i = 0; i < 5; i++) {
             for (let j = 0; j < 5; j++) {
@@ -218,15 +231,19 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
           if (hasCoverall) {
             patternWon = 'coverall';
             prizeAmount = 350;
+            updateData.winner_player_id = playerId;
+            updateData.winner_announced_at = new Date().toISOString();
           }
         }
 
         if (patternWon) {
           // Update multi-game progress
           const updatedProgress = { ...progress, [patternWon as string]: true };
+          updateData.multi_game_progress = updatedProgress;
+          
           await supabase
             .from("game_rooms")
-            .update({ multi_game_progress: updatedProgress })
+            .update(updateData)
             .eq("id", playerData.room_id);
 
           // Award prize
@@ -251,17 +268,6 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
             title: `🎉 ${patternNames[patternWon]} BINGO! 🎉`,
             description: `Congratulations ${playerName}! You won $${prizeAmount} Praise Dollars!`,
           });
-
-          // Check if all patterns complete to end game
-          if (updatedProgress.four_corners && updatedProgress.straight && updatedProgress.diagonal && updatedProgress.coverall) {
-            await supabase
-              .from("game_rooms")
-              .update({
-                winner_player_id: playerId,
-                winner_announced_at: new Date().toISOString(),
-              })
-              .eq("id", playerData.room_id);
-          }
         } else {
           toast({
             title: "Pattern Already Claimed",
