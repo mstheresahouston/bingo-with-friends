@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 interface BingoCardProps {
   card: any;
   calls: any[];
+  winCondition: string;
 }
 
-export const BingoCard = ({ card, calls }: BingoCardProps) => {
+export const BingoCard = ({ card, calls, winCondition }: BingoCardProps) => {
   const [markedCells, setMarkedCells] = useState<number[]>(card.marked_cells || []);
   const { toast } = useToast();
   const cardData = card.card_data;
@@ -53,6 +54,13 @@ export const BingoCard = ({ card, calls }: BingoCardProps) => {
   };
 
   const checkBingo = (marked: number[]) => {
+    if (winCondition === "coverall") {
+      // Check if all 25 cells are marked (including free space)
+      const allCells = Array.from({ length: 25 }, (_, i) => i);
+      return allCells.every((cell) => marked.includes(cell) || cardData[Math.floor(cell / 5)][cell % 5].isFree);
+    }
+
+    // Straight line condition (rows, columns, diagonals)
     // Check rows
     for (let i = 0; i < 5; i++) {
       const row = Array.from({ length: 5 }, (_, j) => i * 5 + j);

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BingoCard } from "@/components/BingoCard";
 import { CallBoard } from "@/components/CallBoard";
 import { Leaderboard } from "@/components/Leaderboard";
+import Chat from "@/components/Chat";
 import { Crown, LogOut } from "lucide-react";
 
 const GameBoard = () => {
@@ -200,10 +201,16 @@ const GameBoard = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {cards.map((card) => (
-                  <BingoCard key={card.id} card={card} calls={calls} />
+                  <BingoCard 
+                    key={card.id} 
+                    card={card} 
+                    calls={calls}
+                    winCondition={gameRoom.win_condition}
+                  />
                 ))}
               </CardContent>
             </Card>
+            <Chat roomId={gameRoom.id} playerName={player?.player_name || "Player"} />
           </div>
 
           {/* Right Column - Calls and Leaderboard */}

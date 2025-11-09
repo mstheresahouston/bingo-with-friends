@@ -81,29 +81,70 @@ export type Database = {
       game_rooms: {
         Row: {
           created_at: string
+          game_type: string
           host_id: string | null
           id: string
           room_code: string
           status: string
           updated_at: string
+          win_condition: string
         }
         Insert: {
           created_at?: string
+          game_type?: string
           host_id?: string | null
           id?: string
           room_code: string
           status?: string
           updated_at?: string
+          win_condition?: string
         }
         Update: {
           created_at?: string
+          game_type?: string
           host_id?: string | null
           id?: string
           room_code?: string
           status?: string
           updated_at?: string
+          win_condition?: string
         }
         Relationships: []
+      }
+      messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          player_name: string
+          room_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          player_name: string
+          room_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          player_name?: string
+          room_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "game_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       players: {
         Row: {

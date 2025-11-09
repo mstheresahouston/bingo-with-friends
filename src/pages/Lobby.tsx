@@ -13,6 +13,8 @@ const Lobby = () => {
   const [playerName, setPlayerName] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [cardCount, setCardCount] = useState("1");
+  const [gameType, setGameType] = useState("words");
+  const [winCondition, setWinCondition] = useState("straight");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -63,6 +65,8 @@ const Lobby = () => {
             room_code: finalRoomCode,
             host_id: user.id,
             status: "waiting",
+            game_type: gameType,
+            win_condition: winCondition,
           })
           .select()
           .single();
@@ -106,7 +110,7 @@ const Lobby = () => {
       // Generate bingo cards
       const cards = [];
       for (let i = 0; i < parseInt(cardCount); i++) {
-        const cardData = generateBingoCard();
+        const cardData = generateBingoCard(gameRoom.game_type);
         cards.push({
           player_id: playerData.id,
           card_data: cardData,
@@ -138,16 +142,23 @@ const Lobby = () => {
     }
   };
 
-  const generateBingoCard = () => {
-    const words = [
-      "Grace", "Faith", "Hope", "Love", "Joy",
-      "Peace", "Mercy", "Trust", "Strength", "Wisdom",
-      "Courage", "Prayer", "Blessing", "Light", "Spirit",
-      "Heart", "Soul", "Truth", "Life", "Praise",
-      "Glory", "Heaven", "Angels", "Miracle", "Goodness"
-    ];
+  const generateBingoCard = (type: string) => {
+    let items: string[] = [];
+    
+    if (type === "numbers") {
+      // B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75
+      items = Array.from({ length: 75 }, (_, i) => (i + 1).toString());
+    } else {
+      items = [
+        "Grace", "Faith", "Hope", "Love", "Joy",
+        "Peace", "Mercy", "Trust", "Strength", "Wisdom",
+        "Courage", "Prayer", "Blessing", "Light", "Spirit",
+        "Heart", "Soul", "Truth", "Life", "Praise",
+        "Glory", "Heaven", "Angels", "Miracle", "Goodness"
+      ];
+    }
 
-    const shuffled = [...words].sort(() => Math.random() - 0.5);
+    const shuffled = [...items].sort(() => Math.random() - 0.5);
     const card = [];
     for (let i = 0; i < 5; i++) {
       const row = [];
@@ -214,6 +225,36 @@ const Lobby = () => {
               </SelectContent>
             </Select>
           </div>
+
+          {!roomCode && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="gameType">Game Type</Label>
+                <Select value={gameType} onValueChange={setGameType}>
+                  <SelectTrigger className="bg-background/50 border-border text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="words">Words</SelectItem>
+                    <SelectItem value="numbers">Numbers</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="winCondition">Win Condition</Label>
+                <Select value={winCondition} onValueChange={setWinCondition}>
+                  <SelectTrigger className="bg-background/50 border-border text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="straight">Straight Line (any direction)</SelectItem>
+                    <SelectItem value="coverall">Cover All (full card)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
 
           <Button
             onClick={handleStartGame}

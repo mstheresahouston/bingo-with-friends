@@ -15,34 +15,40 @@ export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
 
-  const words = [
-    "Grace", "Faith", "Hope", "Love", "Joy",
-    "Peace", "Mercy", "Trust", "Strength", "Wisdom",
-    "Courage", "Prayer", "Blessing", "Light", "Spirit",
-    "Heart", "Soul", "Truth", "Life", "Praise",
-    "Glory", "Heaven", "Angels", "Miracle", "Goodness"
-  ];
-
   const generateCall = async () => {
     setIsGenerating(true);
     try {
-      const calledValues = calls.map((c) => c.call_value);
-      const availableWords = words.filter((w) => !calledValues.includes(w));
+      let items: string[] = [];
+      
+      if (gameRoom.game_type === "numbers") {
+        items = Array.from({ length: 75 }, (_, i) => (i + 1).toString());
+      } else {
+        items = [
+          "Grace", "Faith", "Hope", "Love", "Joy",
+          "Peace", "Mercy", "Trust", "Strength", "Wisdom",
+          "Courage", "Prayer", "Blessing", "Light", "Spirit",
+          "Heart", "Soul", "Truth", "Life", "Praise",
+          "Glory", "Heaven", "Angels", "Miracle", "Goodness"
+        ];
+      }
 
-      if (availableWords.length === 0) {
+      const calledValues = calls.map((c) => c.call_value);
+      const availableItems = items.filter((item) => !calledValues.includes(item));
+
+      if (availableItems.length === 0) {
         toast({
-          title: "All Words Called",
-          description: "All words have been called!",
+          title: "All Items Called",
+          description: `All ${gameRoom.game_type} have been called!`,
         });
         setIsGenerating(false);
         return;
       }
 
-      const randomWord = availableWords[Math.floor(Math.random() * availableWords.length)];
+      const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
 
       const { error } = await supabase.from("game_calls").insert({
         room_id: gameRoom.id,
-        call_value: randomWord,
+        call_value: randomItem,
         call_number: calls.length + 1,
       });
 
@@ -50,7 +56,7 @@ export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
 
       toast({
         title: "New Call!",
-        description: `"${randomWord}" has been called`,
+        description: `"${randomItem}" has been called`,
       });
     } catch (error) {
       console.error("Error generating call:", error);
@@ -72,7 +78,7 @@ export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
           📣 Live Calls
         </CardTitle>
         <CardDescription className="text-card-foreground/80">
-          Watch the called words appear in real time
+          Watch the called {gameRoom.game_type} appear in real time
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
