@@ -126,12 +126,13 @@ const GameBoard = () => {
 
       setPlayers(allPlayers || []);
 
-      // Get bingo cards with consistent ordering
+      // Get bingo cards with consistent ordering (created_at then id)
       const { data: cardsData } = await supabase
         .from("bingo_cards")
         .select()
         .eq("player_id", playerData.id)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
 
       setCards(cardsData || []);
 
