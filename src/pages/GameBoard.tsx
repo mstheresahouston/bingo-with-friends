@@ -8,7 +8,7 @@ import { BingoCard } from "@/components/BingoCard";
 import { CallBoard } from "@/components/CallBoard";
 import { Leaderboard } from "@/components/Leaderboard";
 import Chat from "@/components/Chat";
-import { Crown, LogOut, RotateCcw } from "lucide-react";
+import { Crown, LogOut, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { speakCall } from "@/lib/sounds";
 import {
   AlertDialog,
@@ -33,6 +33,11 @@ const GameBoard = () => {
   const [players, setPlayers] = useState<any[]>([]);
   const [isHost, setIsHost] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMuted, setIsMuted] = useState(() => {
+    // Load mute preference from localStorage
+    const saved = localStorage.getItem("bingo-voice-muted");
+    return saved === "true";
+  });
 
   useEffect(() => {
     loadGameData();
@@ -138,8 +143,8 @@ const GameBoard = () => {
           // Speak new calls for all players
           const newCall = payload.new;
           
-          // Only speak if gameRoom data is loaded
-          if (gameRoom && newCall.room_id === gameRoom.id) {
+          // Only speak if gameRoom data is loaded and not muted
+          if (gameRoom && newCall.room_id === gameRoom.id && !isMuted) {
             speakCall(newCall.call_value, gameRoom.game_type);
           }
           
@@ -182,6 +187,17 @@ const GameBoard = () => {
 
   const handleLeaveGame = () => {
     navigate("/");
+  };
+
+  const toggleMute = () => {
+    const newMutedState = !isMuted;
+    setIsMuted(newMutedState);
+    localStorage.setItem("bingo-voice-muted", newMutedState.toString());
+    
+    toast({
+      title: newMutedState ? "Voice Muted" : "Voice Unmuted",
+      description: newMutedState ? "Call announcements are now muted" : "Call announcements are now active",
+    });
   };
 
   const handleResetGame = async () => {
@@ -251,6 +267,19 @@ const GameBoard = () => {
                 </CardDescription>
               </div>
               <div className="flex gap-2">
+                <Button
+                  onClick={toggleMute}
+                  variant="outline"
+                  className="border-border hover:bg-accent/10"
+                  title={isMuted ? "Unmute voice announcements" : "Mute voice announcements"}
+                >
+                  {isMuted ? (
+                    <VolumeX className="w-4 h-4 mr-2" />
+                  ) : (
+                    <Volume2 className="w-4 h-4 mr-2" />
+                  )}
+                  {isMuted ? "Unmute" : "Mute"}
+                </Button>
                 {isHost && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
