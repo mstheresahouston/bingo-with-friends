@@ -45,7 +45,7 @@ export const playBingoSound = () => {
   });
 };
 
-export const speakCall = (value: string, gameType: string) => {
+export const speakCall = (value: string, gameType: string, voiceGender: 'male' | 'female' = 'female') => {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   
   // Cancel any ongoing speech
@@ -73,6 +73,21 @@ export const speakCall = (value: string, gameType: string) => {
   utterance.rate = 0.9;
   utterance.pitch = 1.0;
   utterance.volume = 1.0;
+  
+  // Select voice based on gender preference
+  const voices = window.speechSynthesis.getVoices();
+  const preferredVoice = voices.find(voice => {
+    const voiceName = voice.name.toLowerCase();
+    if (voiceGender === 'male') {
+      return voiceName.includes('male') || voiceName.includes('david') || voiceName.includes('james');
+    } else {
+      return voiceName.includes('female') || voiceName.includes('samantha') || voiceName.includes('victoria');
+    }
+  });
+  
+  if (preferredVoice) {
+    utterance.voice = preferredVoice;
+  }
   
   window.speechSynthesis.speak(utterance);
 };

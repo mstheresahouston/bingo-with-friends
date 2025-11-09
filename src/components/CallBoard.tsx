@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,12 +10,16 @@ interface CallBoardProps {
   calls: any[];
   isHost: boolean;
   gameRoom: any;
+  voiceGender: 'male' | 'female';
+  isAutoCall: boolean;
+  callSpeed: number;
 }
 
-export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
+export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, callSpeed }: CallBoardProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAllCalls, setShowAllCalls] = useState(false);
   const { toast } = useToast();
+  const autoCallTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const generateCall = async () => {
     setIsGenerating(true);
@@ -57,7 +61,7 @@ export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
       if (error) throw error;
 
       playCallSound();
-      speakCall(randomItem, gameRoom.game_type);
+      speakCall(randomItem, gameRoom.game_type, voiceGender);
       
       // Trigger AI player processing
       supabase.functions.invoke('process-ai-players', {
@@ -82,6 +86,30 @@ export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
       setIsGenerating(false);
     }
   };
+
+  // Auto-call functionality
+  useEffect(() => {
+    if (isHost && isAutoCall && calls.length > 0) {
+      // Clear any existing timer
+      if (autoCallTimerRef.current) {
+        clearTimeout(autoCallTimerRef.current);
+      }
+
+      // Set up new timer based on speed (speed is in seconds)
+      autoCallTimerRef.current = setTimeout(() => {
+        if (!isGenerating) {
+          generateCall();
+        }
+      }, callSpeed * 1000);
+    }
+
+    // Cleanup timer on unmount or when auto-call is disabled
+    return () => {
+      if (autoCallTimerRef.current) {
+        clearTimeout(autoCallTimerRef.current);
+      }
+    };
+  }, [isHost, isAutoCall, callSpeed, calls.length, isGenerating]);
 
   return (
     <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">

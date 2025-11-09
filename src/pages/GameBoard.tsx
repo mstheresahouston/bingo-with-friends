@@ -41,6 +41,9 @@ const GameBoard = () => {
   });
   const [showWinner, setShowWinner] = useState(false);
   const [winnerName, setWinnerName] = useState("");
+  const [voiceGender, setVoiceGender] = useState<'male' | 'female'>('female');
+  const [isAutoCall, setIsAutoCall] = useState(false);
+  const [callSpeed, setCallSpeed] = useState(5); // seconds between calls
 
   useEffect(() => {
     loadGameData();
@@ -148,7 +151,7 @@ const GameBoard = () => {
           
           // Only speak if gameRoom data is loaded and not muted
           if (gameRoom && newCall.room_id === gameRoom.id && !isMuted) {
-            speakCall(newCall.call_value, gameRoom.game_type);
+            speakCall(newCall.call_value, gameRoom.game_type, voiceGender);
           }
           
           loadGameData();
@@ -397,7 +400,87 @@ const GameBoard = () => {
               calls={calls}
               isHost={isHost}
               gameRoom={gameRoom}
+              voiceGender={voiceGender}
+              isAutoCall={isAutoCall}
+              callSpeed={callSpeed}
             />
+            {isHost && (
+              <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
+                <CardHeader>
+                  <CardTitle className="font-heading text-card-foreground">🎛️ Caller Controls</CardTitle>
+                  <CardDescription className="text-card-foreground/80">
+                    Customize the bingo caller settings
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Voice Gender Selection */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-card-foreground">Caller Voice</label>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => setVoiceGender('female')}
+                        variant={voiceGender === 'female' ? 'default' : 'outline'}
+                        className="flex-1"
+                      >
+                        Female
+                      </Button>
+                      <Button
+                        onClick={() => setVoiceGender('male')}
+                        variant={voiceGender === 'male' ? 'default' : 'outline'}
+                        className="flex-1"
+                      >
+                        Male
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Auto-Call Toggle */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-card-foreground">Calling Mode</label>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => setIsAutoCall(false)}
+                        variant={!isAutoCall ? 'default' : 'outline'}
+                        className="flex-1"
+                      >
+                        Manual
+                      </Button>
+                      <Button
+                        onClick={() => setIsAutoCall(true)}
+                        variant={isAutoCall ? 'default' : 'outline'}
+                        className="flex-1"
+                      >
+                        Auto
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Speed Slider (only show when auto-call is enabled) */}
+                  {isAutoCall && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <label className="text-sm font-medium text-card-foreground">Call Speed</label>
+                        <span className="text-sm text-card-foreground/60">{callSpeed}s between calls</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="2"
+                        max="15"
+                        step="1"
+                        value={callSpeed}
+                        onChange={(e) => setCallSpeed(Number(e.target.value))}
+                        className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                      <div className="flex justify-between text-xs text-card-foreground/60">
+                        <span>Fast (2s)</span>
+                        <span>Normal (8s)</span>
+                        <span>Slow (15s)</span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
             <Leaderboard players={players} currentPlayerId={player?.id} />
           </div>
         </div>
