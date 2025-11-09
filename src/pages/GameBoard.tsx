@@ -48,6 +48,8 @@ const GameBoard = () => {
   const [callSpeed, setCallSpeed] = useState(5); // seconds between calls
   const [praiseDollarValue, setPraiseDollarValue] = useState(100);
   const prevCallsLengthRef = useRef(0);
+  // Persist the initial card order for this session so multiple cards don't shuffle
+  const stableCardOrderRef = useRef<string[] | null>(null);
   const [voiceVolume, setVoiceVolume] = useState(() => {
     const saved = localStorage.getItem("bingo-voice-volume");
     return saved ? Number(saved) : 1;
@@ -134,7 +136,28 @@ const GameBoard = () => {
         .order("created_at", { ascending: true })
         .order("id", { ascending: true });
 
-      setCards(cardsData || []);
+      {
+        const nextCards = cardsData || [];
+        if (!stableCardOrderRef.current) {
+          // Initialize the stable display order on first load
+          stableCardOrderRef.current = nextCards.map((c: any) => c.id);
+          setCards(nextCards);
+        } else {
+          // Keep cards in the same positions based on the initial order
+          const idToCard = new Map(nextCards.map((c: any) => [c.id, c]));
+          // Preserve only still-existing cards in the original order
+          let ordered: any[] = (stableCardOrderRef.current || [])
+            .map((id) => idToCard.get(id))
+            .filter(Boolean) as any[];
+          // Append any newly created cards at the end, and persist their order
+          const newOnes = nextCards.filter((c: any) => !stableCardOrderRef.current!.includes(c.id));
+          if (newOnes.length) {
+            stableCardOrderRef.current = [...(stableCardOrderRef.current || []), ...newOnes.map((c: any) => c.id)];
+            ordered = [...ordered, ...newOnes];
+          }
+          setCards(ordered);
+        }
+      }
 
       // Get game calls
       const { data: callsData } = await supabase
