@@ -212,11 +212,10 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
             row.map((cell: any, colIndex: number) => {
               const cellIndex = rowIndex * 5 + colIndex;
               const isMarked = markedCells.includes(cellIndex) || cell.isFree;
-              const isCalled = calledValues.includes(cell.value);
 
               return (
                 <button
-                  key={`${rowIndex}-${colIndex}`}
+                  key={`${card.id}-${rowIndex}-${colIndex}`}
                   onClick={() => toggleCell(rowIndex, colIndex)}
                   className={cn(
                     "aspect-square rounded-lg font-heading text-sm md:text-base font-bold transition-all duration-200",
@@ -225,8 +224,6 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
                       ? "bg-accent text-accent-foreground border-accent cursor-default"
                       : isMarked
                       ? "bg-primary text-primary-foreground border-primary shadow-lg scale-95"
-                      : isCalled
-                      ? "bg-secondary/50 text-secondary-foreground border-secondary hover:bg-secondary hover:scale-105"
                       : "bg-card text-card-foreground border-border hover:border-secondary hover:scale-105"
                   )}
                   disabled={cell.isFree}

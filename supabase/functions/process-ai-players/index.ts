@@ -145,13 +145,36 @@ serve(async (req) => {
         // Check for BINGO
         const updatedCard = { ...card, marked_cells: markedCells }
         if (checkBingo(updatedCard as BingoCard, room.win_condition)) {
-          // Update player score
-          await supabaseClient
-            .from('players')
-            .update({ score: aiPlayer.score + 1 })
-            .eq('id', aiPlayer.id)
-
           console.log(`${aiPlayer.player_name} got BINGO!`)
+          
+          // Check if there's already a winner
+          const { data: roomCheck } = await supabaseClient
+            .from('game_rooms')
+            .select('winner_player_id, praise_dollar_value')
+            .eq('id', roomId)
+            .single()
+          
+          if (roomCheck && !roomCheck.winner_player_id) {
+            // Set this AI as the winner
+            await supabaseClient
+              .from('game_rooms')
+              .update({
+                winner_player_id: aiPlayer.id,
+                winner_announced_at: new Date().toISOString(),
+              })
+              .eq('id', roomId)
+            
+            // Update AI player score and praise dollars
+            await supabaseClient
+              .from('players')
+              .update({ 
+                score: aiPlayer.score + 1,
+                total_praise_dollars: (roomCheck.praise_dollar_value || 100)
+              })
+              .eq('id', aiPlayer.id)
+            
+            console.log(`${aiPlayer.player_name} won the game and received $${roomCheck.praise_dollar_value || 100} Praise Dollars!`)
+          }
         }
       }
     }
