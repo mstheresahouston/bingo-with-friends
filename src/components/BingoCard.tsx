@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,9 @@ interface BingoCardProps {
 export const BingoCard = ({ card, calls, winCondition, playerId, playerName, praiseDollarValue, multiGameProgress }: BingoCardProps) => {
   const [markedCells, setMarkedCells] = useState<number[]>(card.marked_cells || []);
   const { toast } = useToast();
-  const cardData = card.card_data;
+  // Freeze the card layout for the session so numbers/positions never change mid-game
+  const initialCardDataRef = useRef<any[][]>(card.card_data);
+  const cardData = initialCardDataRef.current;
 
   const calledValues = calls.map((call) => call.call_value);
 

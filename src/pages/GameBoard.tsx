@@ -183,10 +183,9 @@ const GameBoard = () => {
           table: "game_calls",
         },
         async (payload) => {
-          // Speak new calls for all players
+          // Only append the new call to avoid full reload affecting card rendering
           const newCall = payload.new;
-          
-          loadGameData();
+          setCalls((prev) => [...prev, newCall]);
         }
       )
       .subscribe();
