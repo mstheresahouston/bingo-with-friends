@@ -268,14 +268,18 @@ const GameBoard = () => {
         .select("id")
         .eq("room_id", gameRoom.id);
 
+      console.log("Reset: Found players:", roomPlayers?.length);
+
       if (roomPlayers) {
         const playerIds = roomPlayers.map(p => p.id);
-        const { error: cardsError } = await supabase
+        const { data: updatedCards, error: cardsError } = await supabase
           .from("bingo_cards")
           .update({ marked_cells: [] })
-          .in("player_id", playerIds);
+          .in("player_id", playerIds)
+          .select();
 
         if (cardsError) throw cardsError;
+        console.log("Reset: Updated cards count:", updatedCards?.length);
       }
 
       // Clear winner information and reset multi-game progress

@@ -165,6 +165,8 @@ serve(async (req) => {
       for (const card of cards) {
         const cardData = card.card_data as any[][]
         let markedCells = card.marked_cells || []
+        
+        console.log(`AI ${aiPlayer.player_name} card ${card.id} - Initial marked cells:`, markedCells.length, markedCells)
 
         // Check if the called value is on this card and mark it
         for (let i = 0; i < 5; i++) {
@@ -174,9 +176,12 @@ serve(async (req) => {
             
             if (cell.value === callValue && !cell.isFree && !markedCells.includes(cellIndex)) {
               markedCells.push(cellIndex)
+              console.log(`AI ${aiPlayer.player_name} marking cell ${cellIndex} for value ${callValue}`)
             }
           }
         }
+
+        console.log(`AI ${aiPlayer.player_name} card ${card.id} - Final marked cells:`, markedCells.length, markedCells)
 
         // Update the card with marked cells
         await supabaseClient
