@@ -140,6 +140,33 @@ export type Database = {
           },
         ]
       }
+      game_winners: {
+        Row: {
+          claimed_at: string
+          id: string
+          player_id: string
+          prize_amount: number
+          room_id: string
+          win_type: string
+        }
+        Insert: {
+          claimed_at?: string
+          id?: string
+          player_id: string
+          prize_amount?: number
+          room_id: string
+          win_type: string
+        }
+        Update: {
+          claimed_at?: string
+          id?: string
+          player_id?: string
+          prize_amount?: number
+          room_id?: string
+          win_type?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           created_at: string

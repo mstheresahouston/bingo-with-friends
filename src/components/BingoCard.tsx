@@ -278,29 +278,63 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
           });
         }
       } else {
-        // Single-pattern game mode
-        if (roomCheck?.winner_player_id) {
+        // Single-pattern game mode with prize splitting
+        const winType = roomCheck.win_condition;
+        
+        // Check if this player already claimed
+        const { data: existingWin } = await supabase
+          .from("game_winners")
+          .select("id")
+          .eq("room_id", playerData.room_id)
+          .eq("player_id", playerId)
+          .eq("win_type", winType)
+          .maybeSingle();
+
+        if (existingWin) {
           toast({
-            title: "Game Already Won",
-            description: "Someone else already claimed bingo!",
+            title: "Already Claimed",
+            description: "You've already claimed this bingo!",
             variant: "destructive",
           });
           return;
         }
 
-        // Update the game room with the winner
-        const { error: roomError } = await supabase
-          .from("game_rooms")
-          .update({
-            winner_player_id: playerId,
-            winner_announced_at: new Date().toISOString(),
-          })
-          .eq("id", playerData.room_id)
-          .is("winner_player_id", null);
+        // Check existing winners (within last 3 seconds for fair prize splitting)
+        const threeSecondsAgo = new Date(Date.now() - 3000).toISOString();
+        const { data: recentWinners } = await supabase
+          .from("game_winners")
+          .select("player_id")
+          .eq("room_id", playerData.room_id)
+          .eq("win_type", winType)
+          .gte("claimed_at", threeSecondsAgo);
 
-        if (roomError) throw roomError;
+        const totalPrize = roomCheck.praise_dollar_value || 100;
+        const numberOfWinners = (recentWinners?.length || 0) + 1;
+        const splitPrize = Math.floor(totalPrize / numberOfWinners);
 
-        const splitPrize = roomCheck.praise_dollar_value || 100;
+        // Record this winner
+        const { error: winnerError } = await supabase
+          .from("game_winners")
+          .insert({
+            room_id: playerData.room_id,
+            player_id: playerId,
+            win_type: winType,
+            prize_amount: splitPrize,
+          });
+
+        if (winnerError) throw winnerError;
+
+        // Update the first winner in game_rooms table for display
+        if (!roomCheck.winner_player_id) {
+          await supabase
+            .from("game_rooms")
+            .update({
+              winner_player_id: playerId,
+              winner_announced_at: new Date().toISOString(),
+            })
+            .eq("id", playerData.room_id)
+            .is("winner_player_id", null);
+        }
 
         // Update player score and prize
         await supabase
@@ -313,9 +347,13 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
 
         playBingoSound();
 
+        const prizeMessage = numberOfWinners > 1 
+          ? `Prize split ${numberOfWinners} ways: $${splitPrize} each!`
+          : `You won $${splitPrize} Praise Dollars!`;
+
         toast({
           title: "🎉 BINGO CLAIMED! 🎉",
-          description: `Congratulations ${playerName}! You won $${splitPrize} Praise Dollars!`,
+          description: `Congratulations ${playerName}! ${prizeMessage}`,
         });
       }
     } catch (error) {

@@ -343,6 +343,12 @@ const GameBoard = () => {
 
       if (callsError) throw callsError;
 
+      // Delete all game winners for this room
+      await supabase
+        .from("game_winners")
+        .delete()
+        .eq("room_id", gameRoom.id);
+
       // Reset all bingo cards marked_cells for this room (keeps the cards themselves)
       const { data: roomPlayers } = await supabase
         .from("players")
