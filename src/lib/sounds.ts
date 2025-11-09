@@ -92,17 +92,53 @@ export const speakCall = (
     const voices = window.speechSynthesis.getVoices();
     
     if (voices.length > 0) {
-      const preferredVoice = voices.find(voice => {
-        const voiceName = voice.name.toLowerCase();
-        if (voiceGender === 'male') {
-          return voiceName.includes('male') || voiceName.includes('david') || voiceName.includes('james') || voiceName.includes('daniel');
-        } else {
-          return voiceName.includes('female') || voiceName.includes('samantha') || voiceName.includes('victoria') || voiceName.includes('karen');
+      let preferredVoice;
+      
+      if (voiceGender === 'male') {
+        // Try to find a male voice
+        preferredVoice = voices.find(voice => {
+          const name = voice.name.toLowerCase();
+          const uri = voice.voiceURI.toLowerCase();
+          return name.includes('male') && !name.includes('female') ||
+                 name.includes('david') || name.includes('james') || 
+                 name.includes('daniel') || name.includes('alex') ||
+                 uri.includes('male') && !uri.includes('female');
+        });
+        
+        // Fallback to voices that typically sound male
+        if (!preferredVoice) {
+          preferredVoice = voices.find(voice => 
+            voice.name.includes('Google UK English Male') ||
+            voice.name.includes('Microsoft Mark') ||
+            voice.lang.startsWith('en') && voice.name.includes('Male')
+          );
         }
-      });
+      } else {
+        // Try to find a female voice
+        preferredVoice = voices.find(voice => {
+          const name = voice.name.toLowerCase();
+          const uri = voice.voiceURI.toLowerCase();
+          return name.includes('female') ||
+                 name.includes('samantha') || name.includes('victoria') || 
+                 name.includes('karen') || name.includes('zira') ||
+                 uri.includes('female');
+        });
+        
+        // Fallback to voices that typically sound female
+        if (!preferredVoice) {
+          preferredVoice = voices.find(voice => 
+            voice.name.includes('Google UK English Female') ||
+            voice.name.includes('Microsoft Zira') ||
+            voice.lang.startsWith('en') && voice.name.includes('Female')
+          );
+        }
+      }
       
       if (preferredVoice) {
         utterance.voice = preferredVoice;
+        console.log(`Using ${voiceGender} voice:`, preferredVoice.name);
+      } else {
+        console.log(`No specific ${voiceGender} voice found, using default`);
       }
     }
     

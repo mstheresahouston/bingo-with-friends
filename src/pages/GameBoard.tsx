@@ -396,7 +396,13 @@ const GameBoard = () => {
                   Mark the squares and claim bingo when you get a winning pattern
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className={`grid gap-4 ${
+                cards.length === 1 
+                  ? 'grid-cols-1' 
+                  : cards.length === 2 
+                  ? 'grid-cols-1 md:grid-cols-2' 
+                  : 'grid-cols-1 md:grid-cols-2'
+              }`}>
                 {cards.map((card) => (
                   <BingoCard 
                     key={card.id} 
