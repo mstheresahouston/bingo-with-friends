@@ -8,7 +8,18 @@ import { BingoCard } from "@/components/BingoCard";
 import { CallBoard } from "@/components/CallBoard";
 import { Leaderboard } from "@/components/Leaderboard";
 import Chat from "@/components/Chat";
-import { Crown, LogOut } from "lucide-react";
+import { Crown, LogOut, RotateCcw } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const GameBoard = () => {
   const { roomCode } = useParams();
@@ -164,6 +175,48 @@ const GameBoard = () => {
     navigate("/");
   };
 
+  const handleResetGame = async () => {
+    try {
+      // Delete all game calls for this room
+      const { error: callsError } = await supabase
+        .from("game_calls")
+        .delete()
+        .eq("room_id", gameRoom.id);
+
+      if (callsError) throw callsError;
+
+      // Reset all bingo cards marked_cells for this room
+      const { data: roomPlayers } = await supabase
+        .from("players")
+        .select("id")
+        .eq("room_id", gameRoom.id);
+
+      if (roomPlayers) {
+        const playerIds = roomPlayers.map(p => p.id);
+        const { error: cardsError } = await supabase
+          .from("bingo_cards")
+          .update({ marked_cells: [] })
+          .in("player_id", playerIds);
+
+        if (cardsError) throw cardsError;
+      }
+
+      toast({
+        title: "Game Reset",
+        description: "All calls and marked cells have been cleared. Ready for a new round!",
+      });
+
+      loadGameData();
+    } catch (error) {
+      console.error("Error resetting game:", error);
+      toast({
+        title: "Error",
+        description: "Failed to reset game. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -188,14 +241,46 @@ const GameBoard = () => {
                   Room Code: <span className="font-bold text-primary">{roomCode}</span> • Player: {player?.player_name}
                 </CardDescription>
               </div>
-              <Button
-                onClick={handleLeaveGame}
-                variant="outline"
-                className="border-border hover:bg-destructive/10"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Leave
-              </Button>
+              <div className="flex gap-2">
+                {isHost && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="border-accent text-accent hover:bg-accent/10"
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Reset Game
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="bg-card border-border">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-card-foreground">Reset Game?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-card-foreground/80">
+                          This will clear all calls and marked cells for all players. Scores and players will be kept. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-background text-foreground border-border">Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={handleResetGame}
+                          className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                        >
+                          Reset Game
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+                <Button
+                  onClick={handleLeaveGame}
+                  variant="outline"
+                  className="border-border hover:bg-destructive/10"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Leave
+                </Button>
+              </div>
             </div>
           </CardHeader>
         </Card>
