@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Megaphone } from "lucide-react";
+import { Megaphone, ChevronDown, ChevronUp } from "lucide-react";
 import { playCallSound, speakCall } from "@/lib/sounds";
 
 interface CallBoardProps {
@@ -14,6 +14,7 @@ interface CallBoardProps {
 
 export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showAllCalls, setShowAllCalls] = useState(false);
   const { toast } = useToast();
 
   const generateCall = async () => {
@@ -104,31 +105,64 @@ export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
           </Button>
         )}
 
-        <div className="space-y-2 max-h-96 overflow-y-auto">
+        <div className="space-y-2">
           {calls.length === 0 ? (
             <p className="text-center text-card-foreground/60 py-8">
               No calls yet. {isHost ? "Click the button to start!" : "Waiting for host to start..."}
             </p>
           ) : (
             <>
-              {calls
-                .slice()
-                .reverse()
-                .map((call, index) => (
-                  <div
-                    key={call.id}
-                    className={`p-3 rounded-lg border-2 transition-all ${
-                      index === 0
-                        ? "bg-accent text-accent-foreground border-accent animate-pulse"
-                        : "bg-card text-card-foreground border-border"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="font-heading font-bold">{call.call_value}</span>
-                      <span className="text-sm opacity-75">#{call.call_number}</span>
-                    </div>
-                  </div>
-                ))}
+              {/* Show most recent call prominently */}
+              <div className="p-4 rounded-lg border-2 bg-accent text-accent-foreground border-accent animate-pulse">
+                <div className="flex justify-between items-center">
+                  <span className="font-heading font-bold text-xl">
+                    {calls[calls.length - 1].call_value}
+                  </span>
+                  <span className="text-sm opacity-75">
+                    Latest Call #{calls[calls.length - 1].call_number}
+                  </span>
+                </div>
+              </div>
+
+              {/* Toggle button for call history */}
+              <Button
+                variant="outline"
+                onClick={() => setShowAllCalls(!showAllCalls)}
+                className="w-full border-border text-card-foreground hover:bg-secondary/20"
+              >
+                {showAllCalls ? (
+                  <>
+                    <ChevronUp className="w-4 h-4 mr-2" />
+                    Hide Call History ({calls.length} calls)
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4 mr-2" />
+                    Show Call History ({calls.length} calls)
+                  </>
+                )}
+              </Button>
+
+              {/* Previous calls - shown when expanded */}
+              {showAllCalls && calls.length > 1 && (
+                <div className="max-h-96 overflow-y-auto space-y-2 pt-2">
+                  {calls
+                    .slice()
+                    .reverse()
+                    .slice(1) // Skip the most recent call since it's shown above
+                    .map((call) => (
+                      <div
+                        key={call.id}
+                        className="p-3 rounded-lg border-2 bg-card text-card-foreground border-border"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-heading font-bold">{call.call_value}</span>
+                          <span className="text-sm opacity-75">#{call.call_number}</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
             </>
           )}
         </div>
