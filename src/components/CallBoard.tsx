@@ -1,0 +1,120 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Megaphone } from "lucide-react";
+
+interface CallBoardProps {
+  calls: any[];
+  isHost: boolean;
+  gameRoom: any;
+}
+
+export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
+
+  const words = [
+    "Grace", "Faith", "Hope", "Love", "Joy",
+    "Peace", "Mercy", "Trust", "Strength", "Wisdom",
+    "Courage", "Prayer", "Blessing", "Light", "Spirit",
+    "Heart", "Soul", "Truth", "Life", "Praise",
+    "Glory", "Heaven", "Angels", "Miracle", "Goodness"
+  ];
+
+  const generateCall = async () => {
+    setIsGenerating(true);
+    try {
+      const calledValues = calls.map((c) => c.call_value);
+      const availableWords = words.filter((w) => !calledValues.includes(w));
+
+      if (availableWords.length === 0) {
+        toast({
+          title: "All Words Called",
+          description: "All words have been called!",
+        });
+        setIsGenerating(false);
+        return;
+      }
+
+      const randomWord = availableWords[Math.floor(Math.random() * availableWords.length)];
+
+      const { error } = await supabase.from("game_calls").insert({
+        room_id: gameRoom.id,
+        call_value: randomWord,
+        call_number: calls.length + 1,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "New Call!",
+        description: `"${randomWord}" has been called`,
+      });
+    } catch (error) {
+      console.error("Error generating call:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate call",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
+      <CardHeader>
+        <CardTitle className="font-heading text-card-foreground flex items-center gap-2">
+          <Megaphone className="w-5 h-5" />
+          📣 Live Calls
+        </CardTitle>
+        <CardDescription className="text-card-foreground/80">
+          Watch the called words appear in real time
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isHost && (
+          <Button
+            onClick={generateCall}
+            disabled={isGenerating}
+            className="w-full bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity font-heading"
+          >
+            {isGenerating ? "Calling..." : "Next Call (Host Only)"}
+          </Button>
+        )}
+
+        <div className="space-y-2 max-h-96 overflow-y-auto">
+          {calls.length === 0 ? (
+            <p className="text-center text-card-foreground/60 py-8">
+              No calls yet. {isHost ? "Click the button to start!" : "Waiting for host to start..."}
+            </p>
+          ) : (
+            <>
+              {calls
+                .slice()
+                .reverse()
+                .map((call, index) => (
+                  <div
+                    key={call.id}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      index === 0
+                        ? "bg-accent text-accent-foreground border-accent animate-pulse"
+                        : "bg-card text-card-foreground border-border"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-heading font-bold">{call.call_value}</span>
+                      <span className="text-sm opacity-75">#{call.call_number}</span>
+                    </div>
+                  </div>
+                ))}
+            </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
