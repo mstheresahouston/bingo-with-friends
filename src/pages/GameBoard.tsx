@@ -338,7 +338,7 @@ const GameBoard = () => {
                   {isHost && <Crown className="w-6 h-6 text-accent" />}
                 </CardTitle>
                 <CardDescription className="text-card-foreground/80">
-                  Room Code: <span className="font-bold text-primary">{roomCode}</span> • Player: {player?.player_name}
+                  Room Code: <span className="font-bold text-primary">{roomCode}</span> • Player: {player?.player_name} • <span className="font-semibold text-accent">{players.length}/50 Players</span>
                 </CardDescription>
               </div>
               <div className="flex gap-2">
