@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Megaphone } from "lucide-react";
-import { playCallSound } from "@/lib/sounds";
+import { playCallSound, speakCall } from "@/lib/sounds";
 
 interface CallBoardProps {
   calls: any[];
@@ -56,6 +56,7 @@ export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
       if (error) throw error;
 
       playCallSound();
+      speakCall(randomItem, gameRoom.game_type);
       
       toast({
         title: "New Call!",

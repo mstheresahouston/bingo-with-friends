@@ -9,6 +9,7 @@ import { CallBoard } from "@/components/CallBoard";
 import { Leaderboard } from "@/components/Leaderboard";
 import Chat from "@/components/Chat";
 import { Crown, LogOut, RotateCcw } from "lucide-react";
+import { speakCall } from "@/lib/sounds";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,11 +130,19 @@ const GameBoard = () => {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "game_calls",
         },
-        () => {
+        async (payload) => {
+          // Speak new calls for all players
+          const newCall = payload.new;
+          
+          // Only speak if gameRoom data is loaded
+          if (gameRoom && newCall.room_id === gameRoom.id) {
+            speakCall(newCall.call_value, gameRoom.game_type);
+          }
+          
           loadGameData();
         }
       )

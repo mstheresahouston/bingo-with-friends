@@ -44,3 +44,35 @@ export const playBingoSound = () => {
     oscillator.stop(startTime + duration);
   });
 };
+
+export const speakCall = (value: string, gameType: string) => {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  
+  // Cancel any ongoing speech
+  window.speechSynthesis.cancel();
+  
+  const utterance = new SpeechSynthesisUtterance();
+  
+  if (gameType === "numbers") {
+    // For numbers, announce with the BINGO letter
+    const num = parseInt(value);
+    let letter = "";
+    
+    if (num >= 1 && num <= 15) letter = "B";
+    else if (num >= 16 && num <= 30) letter = "I";
+    else if (num >= 31 && num <= 45) letter = "N";
+    else if (num >= 46 && num <= 60) letter = "G";
+    else if (num >= 61 && num <= 75) letter = "O";
+    
+    utterance.text = `${letter} ${num}`;
+  } else {
+    // For words, just say the word
+    utterance.text = value;
+  }
+  
+  utterance.rate = 0.9;
+  utterance.pitch = 1.0;
+  utterance.volume = 1.0;
+  
+  window.speechSynthesis.speak(utterance);
+};
