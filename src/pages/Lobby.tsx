@@ -137,6 +137,25 @@ const Lobby = () => {
           setIsLoading(false);
           return;
         }
+        
+        // Check room capacity (max 50 players)
+        const { data: existingPlayers, error: playersError } = await supabase
+          .from("players")
+          .select("id")
+          .eq("room_id", data.id);
+
+        if (playersError) throw playersError;
+
+        if (existingPlayers && existingPlayers.length >= 50) {
+          toast({
+            title: "Room Full",
+            description: "This room has reached its maximum capacity of 50 players",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+        
         gameRoom = data;
       }
 
