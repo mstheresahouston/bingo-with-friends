@@ -44,6 +44,7 @@ const GameBoard = () => {
   const [voiceGender, setVoiceGender] = useState<'male' | 'female'>('female');
   const [isAutoCall, setIsAutoCall] = useState(false);
   const [callSpeed, setCallSpeed] = useState(5); // seconds between calls
+  const [praiseDollarValue, setPraiseDollarValue] = useState(100);
 
   useEffect(() => {
     loadGameData();
@@ -77,6 +78,7 @@ const GameBoard = () => {
 
       setGameRoom(room);
       setIsHost(room.host_id === user.id);
+      setPraiseDollarValue(room.praise_dollar_value || 100);
 
       // Get player data
       const { data: playerData, error: playerError } = await supabase
@@ -387,6 +389,7 @@ const GameBoard = () => {
                     winCondition={gameRoom.win_condition}
                     playerId={player?.id}
                     playerName={player?.player_name}
+                    praiseDollarValue={praiseDollarValue}
                   />
                 ))}
               </CardContent>
@@ -478,6 +481,36 @@ const GameBoard = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Praise Dollar Value */}
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-medium text-card-foreground">Game Prize</label>
+                      <span className="text-lg font-bold text-accent">${praiseDollarValue}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="1000"
+                      step="10"
+                      value={praiseDollarValue}
+                      onChange={async (e) => {
+                        const newValue = Number(e.target.value);
+                        setPraiseDollarValue(newValue);
+                        // Update in database
+                        await supabase
+                          .from("game_rooms")
+                          .update({ praise_dollar_value: newValue })
+                          .eq("id", gameRoom.id);
+                      }}
+                      className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-accent"
+                    />
+                    <div className="flex justify-between text-xs text-card-foreground/60">
+                      <span>$10</span>
+                      <span>Praise Dollars</span>
+                      <span>$1000</span>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}

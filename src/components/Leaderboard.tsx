@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trophy, Medal } from "lucide-react";
+import { Trophy, Medal, DollarSign } from "lucide-react";
 
 interface LeaderboardProps {
   players: any[];
@@ -15,7 +15,7 @@ export const Leaderboard = ({ players, currentPlayerId }: LeaderboardProps) => {
           🏆 Leaderboard
         </CardTitle>
         <CardDescription className="text-card-foreground/80">
-          Current standings in the room
+          Games won & Praise Dollars earned
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -39,12 +39,21 @@ export const Leaderboard = ({ players, currentPlayerId }: LeaderboardProps) => {
                     {index === 1 && <Medal className="w-5 h-5 text-secondary" />}
                     {index === 2 && <Medal className="w-5 h-5 text-muted-foreground" />}
                     {index > 2 && <span className="w-5 text-center font-bold">{index + 1}</span>}
-                    <span className="font-heading font-semibold text-card-foreground">
-                      {player.player_name}
-                      {isAI && <span className="text-xs ml-2 text-muted-foreground">🤖 AI</span>}
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="font-heading font-semibold text-card-foreground">
+                        {player.player_name}
+                        {isAI && <span className="text-xs ml-2 text-muted-foreground">🤖 AI</span>}
+                      </span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <DollarSign className="w-3 h-3" />
+                        <span>${player.total_praise_dollars || 0}</span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-lg font-bold text-primary">{player.score}</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-lg font-bold text-primary">{player.score}</span>
+                    <span className="text-xs text-muted-foreground">wins</span>
+                  </div>
                 </div>
               );
             })

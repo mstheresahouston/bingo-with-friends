@@ -84,6 +84,7 @@ export type Database = {
           game_type: string
           host_id: string | null
           id: string
+          praise_dollar_value: number
           room_code: string
           status: string
           updated_at: string
@@ -96,6 +97,7 @@ export type Database = {
           game_type?: string
           host_id?: string | null
           id?: string
+          praise_dollar_value?: number
           room_code: string
           status?: string
           updated_at?: string
@@ -108,6 +110,7 @@ export type Database = {
           game_type?: string
           host_id?: string | null
           id?: string
+          praise_dollar_value?: number
           room_code?: string
           status?: string
           updated_at?: string
@@ -168,6 +171,7 @@ export type Database = {
           player_name: string
           room_id: string | null
           score: number
+          total_praise_dollars: number
           user_id: string | null
         }
         Insert: {
@@ -177,6 +181,7 @@ export type Database = {
           player_name: string
           room_id?: string | null
           score?: number
+          total_praise_dollars?: number
           user_id?: string | null
         }
         Update: {
@@ -186,6 +191,7 @@ export type Database = {
           player_name?: string
           room_id?: string | null
           score?: number
+          total_praise_dollars?: number
           user_id?: string | null
         }
         Relationships: [

@@ -12,9 +12,10 @@ interface BingoCardProps {
   winCondition: string;
   playerId: string;
   playerName: string;
+  praiseDollarValue: number;
 }
 
-export const BingoCard = ({ card, calls, winCondition, playerId, playerName }: BingoCardProps) => {
+export const BingoCard = ({ card, calls, winCondition, playerId, playerName, praiseDollarValue }: BingoCardProps) => {
   const [markedCells, setMarkedCells] = useState<number[]>(card.marked_cells || []);
   const { toast } = useToast();
   const cardData = card.card_data;
@@ -103,17 +104,29 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName }: B
 
       if (roomError) throw roomError;
 
-      // Update player score
+      // Get current player data to increment score and praise dollars
+      const { data: currentPlayer, error: fetchError } = await supabase
+        .from("players")
+        .select("score, total_praise_dollars")
+        .eq("id", playerId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update player score and praise dollars
       await supabase
         .from("players")
-        .update({ score: 1 })
+        .update({ 
+          score: (currentPlayer.score || 0) + 1,
+          total_praise_dollars: (currentPlayer.total_praise_dollars || 0) + praiseDollarValue
+        })
         .eq("id", playerId);
 
       playBingoSound();
 
       toast({
         title: "🎉 BINGO CLAIMED! 🎉",
-        description: `Congratulations ${playerName}!`,
+        description: `Congratulations ${playerName}! You won $${praiseDollarValue} Praise Dollars!`,
       });
     } catch (error) {
       console.error("Error claiming bingo:", error);
