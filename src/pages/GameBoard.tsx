@@ -9,6 +9,7 @@ import { CallBoard } from "@/components/CallBoard";
 import { Leaderboard } from "@/components/Leaderboard";
 import { WinnerAnnouncement } from "@/components/WinnerAnnouncement";
 import { WinConditionDisplay } from "@/components/WinConditionDisplay";
+import { AiBotWinFlash } from "@/components/AiBotWinFlash";
 import Chat from "@/components/Chat";
 import { Crown, LogOut, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { speakCall } from "@/lib/sounds";
@@ -51,6 +52,16 @@ const GameBoard = () => {
     const saved = localStorage.getItem("bingo-voice-volume");
     return saved ? Number(saved) : 1;
   });
+  
+  // AI Bot win flash state
+  const [showAiBotFlash, setShowAiBotFlash] = useState(false);
+  const [aiBotWinData, setAiBotWinData] = useState<{ botName: string; gameType: string } | null>(null);
+  const prevWinnerIdsRef = useRef<{
+    fourCorners?: string;
+    straight?: string;
+    diagonal?: string;
+    coverall?: string;
+  }>({});
 
   useEffect(() => {
     loadGameData();
@@ -203,9 +214,41 @@ const GameBoard = () => {
           table: "game_rooms",
         },
         async (payload) => {
-          // Check if a winner was announced
+          // Check for AI bot wins in multi-game mode
+          const checkAiBotWin = async (winnerId: string | null, prevWinnerId: string | null, gameType: string) => {
+            if (winnerId && winnerId !== prevWinnerId) {
+              const { data: winnerData } = await supabase
+                .from("players")
+                .select("player_name")
+                .eq("id", winnerId)
+                .single();
+
+              if (winnerData && winnerData.player_name.includes("Bot")) {
+                setAiBotWinData({ botName: winnerData.player_name, gameType });
+                setShowAiBotFlash(true);
+              }
+            }
+          };
+
+          // Check each game type for new AI bot wins
+          await checkAiBotWin(
+            payload.new.four_corners_winner_id,
+            prevWinnerIdsRef.current.fourCorners,
+            'four_corners'
+          );
+          await checkAiBotWin(
+            payload.new.straight_winner_id,
+            prevWinnerIdsRef.current.straight,
+            'straight'
+          );
+          await checkAiBotWin(
+            payload.new.diagonal_winner_id,
+            prevWinnerIdsRef.current.diagonal,
+            'diagonal'
+          );
+          
+          // Check for coverall winner
           if (payload.new.winner_player_id && !payload.old.winner_player_id) {
-            // Fetch the winner's name
             const { data: winnerData } = await supabase
               .from("players")
               .select("player_name")
@@ -213,10 +256,24 @@ const GameBoard = () => {
               .single();
 
             if (winnerData) {
-              setWinnerName(winnerData.player_name);
-              setShowWinner(true);
+              if (winnerData.player_name.includes("Bot")) {
+                setAiBotWinData({ botName: winnerData.player_name, gameType: 'coverall' });
+                setShowAiBotFlash(true);
+              } else {
+                setWinnerName(winnerData.player_name);
+                setShowWinner(true);
+              }
             }
           }
+
+          // Update previous winner IDs
+          prevWinnerIdsRef.current = {
+            fourCorners: payload.new.four_corners_winner_id,
+            straight: payload.new.straight_winner_id,
+            diagonal: payload.new.diagonal_winner_id,
+            coverall: payload.new.winner_player_id,
+          };
+
           loadGameData();
         }
       )
@@ -346,6 +403,18 @@ const GameBoard = () => {
         isOpen={showWinner}
         onClose={() => setShowWinner(false)}
       />
+      
+      {aiBotWinData && (
+        <AiBotWinFlash
+          botName={aiBotWinData.botName}
+          gameType={aiBotWinData.gameType}
+          isVisible={showAiBotFlash}
+          onComplete={() => {
+            setShowAiBotFlash(false);
+            setAiBotWinData(null);
+          }}
+        />
+      )}
       
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
