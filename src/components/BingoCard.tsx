@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { playBingoSound } from "@/lib/sounds";
 
 interface BingoCardProps {
   card: any;
@@ -46,6 +47,7 @@ export const BingoCard = ({ card, calls, winCondition }: BingoCardProps) => {
 
     // Check for bingo
     if (checkBingo(newMarkedCells)) {
+      playBingoSound();
       toast({
         title: "🎉 BINGO!",
         description: "Congratulations! You got a bingo!",
