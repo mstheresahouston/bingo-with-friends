@@ -143,34 +143,56 @@ const Lobby = () => {
   };
 
   const generateBingoCard = (type: string) => {
-    let items: string[] = [];
+    const card = [];
     
     if (type === "numbers") {
-      // B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75
-      items = Array.from({ length: 75 }, (_, i) => (i + 1).toString());
+      // Traditional BINGO: B(1-15), I(16-30), N(31-45), G(46-60), O(61-75)
+      const columns = [
+        Array.from({ length: 15 }, (_, i) => (i + 1).toString()),        // B: 1-15
+        Array.from({ length: 15 }, (_, i) => (i + 16).toString()),       // I: 16-30
+        Array.from({ length: 15 }, (_, i) => (i + 31).toString()),       // N: 31-45
+        Array.from({ length: 15 }, (_, i) => (i + 46).toString()),       // G: 46-60
+        Array.from({ length: 15 }, (_, i) => (i + 61).toString()),       // O: 61-75
+      ];
+
+      // Shuffle each column
+      const shuffledColumns = columns.map(col => [...col].sort(() => Math.random() - 0.5));
+
+      // Build 5x5 card
+      for (let i = 0; i < 5; i++) {
+        const row = [];
+        for (let j = 0; j < 5; j++) {
+          if (i === 2 && j === 2) {
+            row.push({ value: "FREE", isFree: true });
+          } else {
+            row.push({ value: shuffledColumns[j][i], isFree: false });
+          }
+        }
+        card.push(row);
+      }
     } else {
-      items = [
+      // Words version
+      const words = [
         "Grace", "Faith", "Hope", "Love", "Joy",
         "Peace", "Mercy", "Trust", "Strength", "Wisdom",
         "Courage", "Prayer", "Blessing", "Light", "Spirit",
         "Heart", "Soul", "Truth", "Life", "Praise",
         "Glory", "Heaven", "Angels", "Miracle", "Goodness"
       ];
-    }
 
-    const shuffled = [...items].sort(() => Math.random() - 0.5);
-    const card = [];
-    for (let i = 0; i < 5; i++) {
-      const row = [];
-      for (let j = 0; j < 5; j++) {
-        const index = i * 5 + j;
-        if (i === 2 && j === 2) {
-          row.push({ value: "FREE", isFree: true });
-        } else {
-          row.push({ value: shuffled[index > 12 ? index - 1 : index], isFree: false });
+      const shuffled = [...words].sort(() => Math.random() - 0.5);
+      for (let i = 0; i < 5; i++) {
+        const row = [];
+        for (let j = 0; j < 5; j++) {
+          const index = i * 5 + j;
+          if (i === 2 && j === 2) {
+            row.push({ value: "FREE", isFree: true });
+          } else {
+            row.push({ value: shuffled[index > 12 ? index - 1 : index], isFree: false });
+          }
         }
+        card.push(row);
       }
-      card.push(row);
     }
     return card;
   };
