@@ -93,35 +93,50 @@ export const BingoCard = ({ card, calls, winCondition }: BingoCardProps) => {
   };
 
   return (
-    <div className="grid grid-cols-5 gap-2 p-4 bg-gradient-to-br from-card to-background rounded-lg border-2 border-secondary">
-      {cardData.map((row: any[], rowIndex: number) =>
-        row.map((cell: any, colIndex: number) => {
-          const cellIndex = rowIndex * 5 + colIndex;
-          const isMarked = markedCells.includes(cellIndex) || cell.isFree;
-          const isCalled = calledValues.includes(cell.value);
+    <div className="bg-gradient-to-br from-card to-background rounded-lg border-2 border-secondary p-4">
+      {/* BINGO Header */}
+      <div className="grid grid-cols-5 gap-2 mb-2">
+        {['B', 'I', 'N', 'G', 'O'].map((letter) => (
+          <div
+            key={letter}
+            className="aspect-square rounded-lg font-heading text-xl md:text-2xl font-bold flex items-center justify-center bg-primary text-primary-foreground border-2 border-primary"
+          >
+            {letter}
+          </div>
+        ))}
+      </div>
+      
+      {/* Bingo Grid */}
+      <div className="grid grid-cols-5 gap-2">
+        {cardData.map((row: any[], rowIndex: number) =>
+          row.map((cell: any, colIndex: number) => {
+            const cellIndex = rowIndex * 5 + colIndex;
+            const isMarked = markedCells.includes(cellIndex) || cell.isFree;
+            const isCalled = calledValues.includes(cell.value);
 
-          return (
-            <button
-              key={`${rowIndex}-${colIndex}`}
-              onClick={() => toggleCell(rowIndex, colIndex)}
-              className={cn(
-                "aspect-square rounded-lg font-heading text-sm md:text-base font-bold transition-all duration-200",
-                "flex items-center justify-center border-2",
-                cell.isFree
-                  ? "bg-accent text-accent-foreground border-accent cursor-default"
-                  : isMarked
-                  ? "bg-primary text-primary-foreground border-primary shadow-lg scale-95"
-                  : isCalled
-                  ? "bg-secondary/50 text-secondary-foreground border-secondary hover:bg-secondary hover:scale-105"
-                  : "bg-card text-card-foreground border-border hover:border-secondary hover:scale-105"
-              )}
-              disabled={cell.isFree}
-            >
-              {cell.value}
-            </button>
-          );
-        })
-      )}
+            return (
+              <button
+                key={`${rowIndex}-${colIndex}`}
+                onClick={() => toggleCell(rowIndex, colIndex)}
+                className={cn(
+                  "aspect-square rounded-lg font-heading text-sm md:text-base font-bold transition-all duration-200",
+                  "flex items-center justify-center border-2",
+                  cell.isFree
+                    ? "bg-accent text-accent-foreground border-accent cursor-default"
+                    : isMarked
+                    ? "bg-primary text-primary-foreground border-primary shadow-lg scale-95"
+                    : isCalled
+                    ? "bg-secondary/50 text-secondary-foreground border-secondary hover:bg-secondary hover:scale-105"
+                    : "bg-card text-card-foreground border-border hover:border-secondary hover:scale-105"
+                )}
+                disabled={cell.isFree}
+              >
+                {cell.value}
+              </button>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 };
