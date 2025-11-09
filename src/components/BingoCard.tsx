@@ -148,57 +148,168 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
 
       if (playerError) throw playerError;
 
-      // Check if there's already a winner
+      // Get current room state
       const { data: roomCheck } = await supabase
         .from("game_rooms")
-        .select("winner_player_id, praise_dollar_value")
+        .select("winner_player_id, praise_dollar_value, win_condition, multi_game_progress")
         .eq("id", playerData.room_id)
         .single();
 
-      if (roomCheck?.winner_player_id) {
+      if (!roomCheck) throw new Error("Room not found");
+
+      // For multi-game mode, handle pattern-specific wins
+      if (roomCheck.win_condition === 'multi_game') {
+        const progress = (roomCheck.multi_game_progress as any) || { four_corners: false, straight: false, diagonal: false, coverall: false };
+        const markedSet = new Set(markedCells);
+        let patternWon: string | null = null;
+        let prizeAmount = 0;
+
+        // Determine which pattern was completed
+        if (!progress.four_corners) {
+          const corners = [0, 4, 20, 24];
+          if (corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree)) {
+            patternWon = 'four_corners';
+            prizeAmount = 125;
+          }
+        }
+        if (!patternWon && !progress.straight) {
+          for (let i = 0; i < 5; i++) {
+            let rowComplete = true;
+            let colComplete = true;
+            for (let j = 0; j < 5; j++) {
+              const rowIndex = i * 5 + j;
+              const colIndex = j * 5 + i;
+              if (!markedSet.has(rowIndex) && !cardData[i][j].isFree) rowComplete = false;
+              if (!markedSet.has(colIndex) && !cardData[j][i].isFree) colComplete = false;
+            }
+            if (rowComplete || colComplete) {
+              patternWon = 'straight';
+              prizeAmount = 100;
+              break;
+            }
+          }
+        }
+        if (!patternWon && !progress.diagonal) {
+          let diag1Complete = true;
+          let diag2Complete = true;
+          for (let i = 0; i < 5; i++) {
+            const diag1Index = i * 5 + i;
+            const diag2Index = i * 5 + (4 - i);
+            if (!markedSet.has(diag1Index) && !cardData[i][i].isFree) diag1Complete = false;
+            if (!markedSet.has(diag2Index) && !cardData[i][4 - i].isFree) diag2Complete = false;
+          }
+          if (diag1Complete || diag2Complete) {
+            patternWon = 'diagonal';
+            prizeAmount = 100;
+          }
+        }
+        if (!patternWon && !progress.coverall) {
+          let hasCoverall = true;
+          for (let i = 0; i < 5; i++) {
+            for (let j = 0; j < 5; j++) {
+              const cellIndex = i * 5 + j;
+              if (!markedSet.has(cellIndex) && !cardData[i][j].isFree) {
+                hasCoverall = false;
+                break;
+              }
+            }
+            if (!hasCoverall) break;
+          }
+          if (hasCoverall) {
+            patternWon = 'coverall';
+            prizeAmount = 350;
+          }
+        }
+
+        if (patternWon) {
+          // Update multi-game progress
+          const updatedProgress = { ...progress, [patternWon as string]: true };
+          await supabase
+            .from("game_rooms")
+            .update({ multi_game_progress: updatedProgress })
+            .eq("id", playerData.room_id);
+
+          // Award prize
+          await supabase
+            .from("players")
+            .update({ 
+              score: (playerData.score || 0) + 1,
+              total_praise_dollars: (playerData.total_praise_dollars || 0) + prizeAmount
+            })
+            .eq("id", playerId);
+
+          playBingoSound();
+
+          const patternNames: Record<string, string> = {
+            four_corners: 'Four Corners',
+            straight: 'Straight Line',
+            diagonal: 'Diagonal',
+            coverall: 'Coverall'
+          };
+
+          toast({
+            title: `🎉 ${patternNames[patternWon]} BINGO! 🎉`,
+            description: `Congratulations ${playerName}! You won $${prizeAmount} Praise Dollars!`,
+          });
+
+          // Check if all patterns complete to end game
+          if (updatedProgress.four_corners && updatedProgress.straight && updatedProgress.diagonal && updatedProgress.coverall) {
+            await supabase
+              .from("game_rooms")
+              .update({
+                winner_player_id: playerId,
+                winner_announced_at: new Date().toISOString(),
+              })
+              .eq("id", playerData.room_id);
+          }
+        } else {
+          toast({
+            title: "Pattern Already Claimed",
+            description: "This pattern has already been won by another player!",
+            variant: "destructive",
+          });
+        }
+      } else {
+        // Single-pattern game mode
+        if (roomCheck?.winner_player_id) {
+          toast({
+            title: "Game Already Won",
+            description: "Someone else already claimed bingo!",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Update the game room with the winner
+        const { error: roomError } = await supabase
+          .from("game_rooms")
+          .update({
+            winner_player_id: playerId,
+            winner_announced_at: new Date().toISOString(),
+          })
+          .eq("id", playerData.room_id)
+          .is("winner_player_id", null);
+
+        if (roomError) throw roomError;
+
+        const splitPrize = roomCheck.praise_dollar_value || 100;
+
+        // Update player score and prize
+        await supabase
+          .from("players")
+          .update({ 
+            score: (playerData.score || 0) + 1,
+            total_praise_dollars: (playerData.total_praise_dollars || 0) + splitPrize
+          })
+          .eq("id", playerId);
+
+        playBingoSound();
+
         toast({
-          title: "Game Already Won",
-          description: "Someone else already claimed bingo!",
-          variant: "destructive",
+          title: "🎉 BINGO CLAIMED! 🎉",
+          description: `Congratulations ${playerName}! You won $${splitPrize} Praise Dollars!`,
         });
-        return;
       }
-
-      // Update the game room with the winner
-      const { error: roomError } = await supabase
-        .from("game_rooms")
-        .update({
-          winner_player_id: playerId,
-          winner_announced_at: new Date().toISOString(),
-        })
-        .eq("id", playerData.room_id)
-        .is("winner_player_id", null); // Only if no winner yet
-
-      if (roomError) throw roomError;
-
-      // Wait briefly to detect simultaneous winners
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // For simplicity, treat as single winner
-      // In production, you'd validate all player cards for same-timestamp claims
-      const winnerCount = 1;
-      const splitPrize = Math.floor(praiseDollarValue / winnerCount);
-
-      // Update player score and split prize
-      await supabase
-        .from("players")
-        .update({ 
-          score: (playerData.score || 0) + 1,
-          total_praise_dollars: (playerData.total_praise_dollars || 0) + splitPrize
-        })
-        .eq("id", playerId);
-
-      playBingoSound();
-
-      toast({
-        title: "🎉 BINGO CLAIMED! 🎉",
-        description: `Congratulations ${playerName}! You won $${splitPrize} Praise Dollars!`,
-      });
     } catch (error) {
       console.error("Error claiming bingo:", error);
       toast({
@@ -269,63 +380,61 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
     }
 
     if (winCondition === "multi_game") {
-      // Progressive: four_corners -> straight line -> diagonal -> coverall
-      // Check four corners
-      const corners = [0, 4, 20, 24];
-      const hasFourCorners = corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree);
+      // Check each pattern individually - can win on any pattern
+      const progress = multiGameProgress || { four_corners: false, straight: false, diagonal: false, coverall: false };
       
-      // Check straight line (row or column)
-      let hasStraightLine = false;
-      for (let i = 0; i < 5; i++) {
-        let rowComplete = true;
-        let colComplete = true;
-        for (let j = 0; j < 5; j++) {
-          const rowIndex = i * 5 + j;
-          const colIndex = j * 5 + i;
-          if (!markedSet.has(rowIndex) && !cardData[i][j].isFree) {
-            rowComplete = false;
+      // Check four corners (if not already won)
+      if (!progress.four_corners) {
+        const corners = [0, 4, 20, 24];
+        const hasFourCorners = corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree);
+        if (hasFourCorners) return true;
+      }
+      
+      // Check straight line (row or column) (if not already won)
+      if (!progress.straight) {
+        for (let i = 0; i < 5; i++) {
+          let rowComplete = true;
+          let colComplete = true;
+          for (let j = 0; j < 5; j++) {
+            const rowIndex = i * 5 + j;
+            const colIndex = j * 5 + i;
+            if (!markedSet.has(rowIndex) && !cardData[i][j].isFree) rowComplete = false;
+            if (!markedSet.has(colIndex) && !cardData[j][i].isFree) colComplete = false;
           }
-          if (!markedSet.has(colIndex) && !cardData[j][i].isFree) {
-            colComplete = false;
-          }
-        }
-        if (rowComplete || colComplete) {
-          hasStraightLine = true;
-          break;
+          if (rowComplete || colComplete) return true;
         }
       }
       
-      // Check diagonal
-      let diag1Complete = true;
-      let diag2Complete = true;
-      for (let i = 0; i < 5; i++) {
-        const diag1Index = i * 5 + i;
-        const diag2Index = i * 5 + (4 - i);
-        
-        if (!markedSet.has(diag1Index) && !cardData[i][i].isFree) {
-          diag1Complete = false;
+      // Check diagonal (if not already won)
+      if (!progress.diagonal) {
+        let diag1Complete = true;
+        let diag2Complete = true;
+        for (let i = 0; i < 5; i++) {
+          const diag1Index = i * 5 + i;
+          const diag2Index = i * 5 + (4 - i);
+          if (!markedSet.has(diag1Index) && !cardData[i][i].isFree) diag1Complete = false;
+          if (!markedSet.has(diag2Index) && !cardData[i][4 - i].isFree) diag2Complete = false;
         }
-        if (!markedSet.has(diag2Index) && !cardData[i][4 - i].isFree) {
-          diag2Complete = false;
-        }
+        if (diag1Complete || diag2Complete) return true;
       }
-      const hasDiagonal = diag1Complete || diag2Complete;
       
-      // Check coverall
-      let hasCoverall = true;
-      for (let i = 0; i < 5; i++) {
-        for (let j = 0; j < 5; j++) {
-          const cellIndex = i * 5 + j;
-          if (!markedSet.has(cellIndex) && !cardData[i][j].isFree) {
-            hasCoverall = false;
-            break;
+      // Check coverall (if not already won)
+      if (!progress.coverall) {
+        let hasCoverall = true;
+        for (let i = 0; i < 5; i++) {
+          for (let j = 0; j < 5; j++) {
+            const cellIndex = i * 5 + j;
+            if (!markedSet.has(cellIndex) && !cardData[i][j].isFree) {
+              hasCoverall = false;
+              break;
+            }
           }
+          if (!hasCoverall) break;
         }
-        if (!hasCoverall) break;
+        if (hasCoverall) return true;
       }
       
-      // Must complete all four in order
-      return hasFourCorners && hasStraightLine && hasDiagonal && hasCoverall;
+      return false;
     }
 
     // Default: straight line (rows, columns, diagonals)

@@ -18,7 +18,6 @@ function checkBingo(card: BingoCard, winCondition: string): boolean {
   const cardData = card.card_data;
 
   if (winCondition === "coverall") {
-    // Check if all 25 cells are marked
     for (let i = 0; i < 5; i++) {
       for (let j = 0; j < 5; j++) {
         const cellIndex = i * 5 + j;
@@ -31,13 +30,11 @@ function checkBingo(card: BingoCard, winCondition: string): boolean {
   }
 
   if (winCondition === "four_corners") {
-    // Check all four corners: [0,0], [0,4], [4,0], [4,4]
-    const corners = [0, 4, 20, 24]; // top-left, top-right, bottom-left, bottom-right
+    const corners = [0, 4, 20, 24];
     return corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree);
   }
 
   if (winCondition === "block_of_four") {
-    // Check for any 2x2 block
     for (let i = 0; i < 4; i++) {
       for (let j = 0; j < 4; j++) {
         const indices = [
@@ -56,7 +53,6 @@ function checkBingo(card: BingoCard, winCondition: string): boolean {
   }
 
   if (winCondition === "diagonal") {
-    // Check both diagonals
     let diag1Complete = true;
     let diag2Complete = true;
     for (let i = 0; i < 5; i++) {
@@ -74,13 +70,11 @@ function checkBingo(card: BingoCard, winCondition: string): boolean {
   }
 
   if (winCondition === "multi_game") {
-    // For multi-game, this is checked separately for each pattern
-    // This function is not used for multi_game detection
+    // For multi-game, this is not used
     return false;
   }
 
   // Default: straight line (rows, columns, diagonals)
-  // Check rows
   for (let i = 0; i < 5; i++) {
     let rowComplete = true;
     for (let j = 0; j < 5; j++) {
@@ -93,7 +87,6 @@ function checkBingo(card: BingoCard, winCondition: string): boolean {
     if (rowComplete) return true;
   }
 
-  // Check columns
   for (let j = 0; j < 5; j++) {
     let colComplete = true;
     for (let i = 0; i < 5; i++) {
@@ -106,7 +99,6 @@ function checkBingo(card: BingoCard, winCondition: string): boolean {
     if (colComplete) return true;
   }
 
-  // Check diagonals
   let diag1Complete = true;
   let diag2Complete = true;
   for (let i = 0; i < 5; i++) {
@@ -151,7 +143,7 @@ serve(async (req) => {
     // Get all AI players in the room (those with names ending in "Bot")
     const { data: aiPlayers } = await supabaseClient
       .from('players')
-      .select('id, player_name, score')
+      .select('id, player_name, score, total_praise_dollars')
       .eq('room_id', roomId)
       .like('player_name', '%Bot')
 
@@ -196,7 +188,7 @@ serve(async (req) => {
         const updatedCard = { ...card, marked_cells: markedCells }
         
         if (room.win_condition === 'multi_game') {
-          // Check all four patterns simultaneously
+          // Check all four patterns and award prizes for each
           const { data: roomCheck } = await supabaseClient
             .from('game_rooms')
             .select('multi_game_progress, praise_dollar_value')
@@ -208,11 +200,12 @@ serve(async (req) => {
           const progress = roomCheck.multi_game_progress || { four_corners: false, straight: false, diagonal: false, coverall: false }
           let updatedProgress = { ...progress }
           let prizesWon = 0
+          const markedSet = new Set(markedCells)
           
           // Check four corners (if not already won)
           if (!progress.four_corners) {
             const corners = [0, 4, 20, 24]
-            const hasFourCorners = corners.every(index => markedCells.includes(index) || cardData[Math.floor(index / 5)][index % 5].isFree)
+            const hasFourCorners = corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree)
             if (hasFourCorners) {
               console.log(`${aiPlayer.player_name} completed Four Corners!`)
               updatedProgress.four_corners = true
@@ -229,8 +222,8 @@ serve(async (req) => {
               for (let j = 0; j < 5; j++) {
                 const rowIndex = i * 5 + j
                 const colIndex = j * 5 + i
-                if (!markedCells.includes(rowIndex) && !cardData[i][j].isFree) rowComplete = false
-                if (!markedCells.includes(colIndex) && !cardData[j][i].isFree) colComplete = false
+                if (!markedSet.has(rowIndex) && !cardData[i][j].isFree) rowComplete = false
+                if (!markedSet.has(colIndex) && !cardData[j][i].isFree) colComplete = false
               }
               if (rowComplete || colComplete) {
                 hasStraightLine = true
@@ -251,8 +244,8 @@ serve(async (req) => {
             for (let i = 0; i < 5; i++) {
               const diag1Index = i * 5 + i
               const diag2Index = i * 5 + (4 - i)
-              if (!markedCells.includes(diag1Index) && !cardData[i][i].isFree) diag1Complete = false
-              if (!markedCells.includes(diag2Index) && !cardData[i][4 - i].isFree) diag2Complete = false
+              if (!markedSet.has(diag1Index) && !cardData[i][i].isFree) diag1Complete = false
+              if (!markedSet.has(diag2Index) && !cardData[i][4 - i].isFree) diag2Complete = false
             }
             if (diag1Complete || diag2Complete) {
               console.log(`${aiPlayer.player_name} completed Diagonal!`)
@@ -267,7 +260,7 @@ serve(async (req) => {
             for (let i = 0; i < 5; i++) {
               for (let j = 0; j < 5; j++) {
                 const cellIndex = i * 5 + j
-                if (!markedCells.includes(cellIndex) && !cardData[i][j].isFree) {
+                if (!markedSet.has(cellIndex) && !cardData[i][j].isFree) {
                   hasCoverall = false
                   break
                 }
@@ -293,23 +286,33 @@ serve(async (req) => {
               .from('players')
               .update({ 
                 score: aiPlayer.score + 1,
-                total_praise_dollars: (aiPlayer as any).total_praise_dollars + prizesWon
+                total_praise_dollars: (aiPlayer.total_praise_dollars || 0) + prizesWon
               })
               .eq('id', aiPlayer.id)
             
             console.log(`${aiPlayer.player_name} won $${prizesWon} Praise Dollars!`)
           }
           
-          // Check if all four are complete
+          // Check if all four are complete to end game
           if (updatedProgress.four_corners && updatedProgress.straight && updatedProgress.diagonal && updatedProgress.coverall) {
             console.log('Multi-game complete! All patterns achieved.')
-            await supabaseClient
+            
+            // Only set winner if not already set
+            const { data: finalCheck } = await supabaseClient
               .from('game_rooms')
-              .update({
-                winner_player_id: aiPlayer.id,
-                winner_announced_at: new Date().toISOString(),
-              })
+              .select('winner_player_id')
               .eq('id', roomId)
+              .single()
+            
+            if (finalCheck && !finalCheck.winner_player_id) {
+              await supabaseClient
+                .from('game_rooms')
+                .update({
+                  winner_player_id: aiPlayer.id,
+                  winner_announced_at: new Date().toISOString(),
+                })
+                .eq('id', roomId)
+            }
           }
         } else {
           // Regular single-pattern bingo

@@ -46,6 +46,7 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
       const availableItems = items.filter((item) => !calledValues.includes(item));
 
       if (availableItems.length === 0) {
+        setIsGenerating(false);
         toast({
           title: "All Items Called",
           description: `All ${gameRoom.game_type} have been called!`,
@@ -92,8 +93,25 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
 
   // Auto-call functionality
   useEffect(() => {
-    // Clear any existing timer when auto-call is toggled off or game ends
-    if (!isAutoCall || hasWinner || !isHost) {
+    // Check if all items have been called
+    let items: string[] = [];
+    if (gameRoom.game_type === "numbers") {
+      items = Array.from({ length: 75 }, (_, i) => (i + 1).toString());
+    } else {
+      items = [
+        "Grace", "Faith", "Hope", "Love", "Joy",
+        "Peace", "Mercy", "Trust", "Strength", "Wisdom",
+        "Courage", "Prayer", "Blessing", "Light", "Spirit",
+        "Heart", "Soul", "Truth", "Life", "Praise",
+        "Glory", "Heaven", "Angels", "Miracle", "Goodness"
+      ];
+    }
+    const calledValues = calls.map((c) => c.call_value);
+    const availableItems = items.filter((item) => !calledValues.includes(item));
+    const allItemsCalled = availableItems.length === 0;
+
+    // Clear any existing timer when auto-call is toggled off, game ends, or all items called
+    if (!isAutoCall || hasWinner || !isHost || allItemsCalled) {
       if (autoCallTimerRef.current) {
         clearTimeout(autoCallTimerRef.current);
         autoCallTimerRef.current = null;
@@ -102,7 +120,7 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
     }
 
     // Only set up timer if auto-call is enabled and no timer is running
-    if (isAutoCall && isHost && !hasWinner && !autoCallTimerRef.current) {
+    if (isAutoCall && isHost && !hasWinner && !allItemsCalled && !autoCallTimerRef.current) {
       autoCallTimerRef.current = setTimeout(() => {
         generateCall().then(() => {
           // Clear timer reference after call is made
@@ -118,7 +136,7 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
         autoCallTimerRef.current = null;
       }
     };
-  }, [isHost, isAutoCall, callSpeed, isGenerating, hasWinner]);
+  }, [isHost, isAutoCall, callSpeed, isGenerating, hasWinner, calls]);
 
   return (
     <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
