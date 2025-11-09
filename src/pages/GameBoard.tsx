@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +45,7 @@ const GameBoard = () => {
   const [isAutoCall, setIsAutoCall] = useState(false);
   const [callSpeed, setCallSpeed] = useState(5); // seconds between calls
   const [praiseDollarValue, setPraiseDollarValue] = useState(100);
+  const prevCallsLengthRef = useRef(0);
 
   useEffect(() => {
     loadGameData();
@@ -137,6 +138,22 @@ const GameBoard = () => {
     }
   };
 
+  // Separate effect to handle voice announcements when new calls arrive
+  useEffect(() => {
+    // Only announce if:
+    // 1. We have calls
+    // 2. GameRoom is loaded
+    // 3. Sound is not muted
+    // 4. A NEW call was added (not initial load)
+    if (calls.length > 0 && gameRoom && !isMuted && calls.length > prevCallsLengthRef.current) {
+      const latestCall = calls[calls.length - 1];
+      speakCall(latestCall.call_value, gameRoom.game_type, voiceGender);
+    }
+    
+    // Update the ref for next comparison
+    prevCallsLengthRef.current = calls.length;
+  }, [calls.length, gameRoom, isMuted, voiceGender]); // Re-run when these change
+
   const setupRealtimeSubscriptions = () => {
     const callsChannel = supabase
       .channel(`calls-${roomCode}`)
@@ -150,11 +167,6 @@ const GameBoard = () => {
         async (payload) => {
           // Speak new calls for all players
           const newCall = payload.new;
-          
-          // Only speak if gameRoom data is loaded and not muted
-          if (gameRoom && newCall.room_id === gameRoom.id && !isMuted) {
-            speakCall(newCall.call_value, gameRoom.game_type, voiceGender);
-          }
           
           loadGameData();
         }
@@ -421,20 +433,31 @@ const GameBoard = () => {
                     <label className="text-sm font-medium text-card-foreground">Caller Voice</label>
                     <div className="flex gap-2">
                       <Button
-                        onClick={() => setVoiceGender('female')}
+                        onClick={() => {
+                          setVoiceGender('female');
+                          // Test the voice
+                          speakCall('15', gameRoom.game_type, 'female');
+                        }}
                         variant={voiceGender === 'female' ? 'default' : 'outline'}
                         className="flex-1"
                       >
                         Female
                       </Button>
                       <Button
-                        onClick={() => setVoiceGender('male')}
+                        onClick={() => {
+                          setVoiceGender('male');
+                          // Test the voice
+                          speakCall('15', gameRoom.game_type, 'male');
+                        }}
                         variant={voiceGender === 'male' ? 'default' : 'outline'}
                         className="flex-1"
                       >
                         Male
                       </Button>
                     </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Click to test voice
+                    </p>
                   </div>
 
                   {/* Auto-Call Toggle */}
