@@ -14,9 +14,10 @@ interface CallBoardProps {
   isAutoCall: boolean;
   callSpeed: number;
   voiceVolume: number;
+  hasWinner: boolean;
 }
 
-export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, callSpeed, voiceVolume }: CallBoardProps) => {
+export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, callSpeed, voiceVolume, hasWinner }: CallBoardProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAllCalls, setShowAllCalls] = useState(false);
   const { toast } = useToast();
@@ -90,7 +91,8 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
 
   // Auto-call functionality
   useEffect(() => {
-    if (isHost && isAutoCall && calls.length > 0) {
+    // Stop auto-call if game has ended (has winner)
+    if (isHost && isAutoCall && calls.length > 0 && !hasWinner) {
       // Clear any existing timer
       if (autoCallTimerRef.current) {
         clearTimeout(autoCallTimerRef.current);
@@ -104,13 +106,13 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
       }, callSpeed * 1000);
     }
 
-    // Cleanup timer on unmount or when auto-call is disabled
+    // Cleanup timer on unmount or when auto-call is disabled or game has winner
     return () => {
       if (autoCallTimerRef.current) {
         clearTimeout(autoCallTimerRef.current);
       }
     };
-  }, [isHost, isAutoCall, callSpeed, calls.length, isGenerating]);
+  }, [isHost, isAutoCall, callSpeed, calls.length, isGenerating, hasWinner]);
 
   return (
     <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
@@ -127,10 +129,10 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
         {isHost && (
           <Button
             onClick={generateCall}
-            disabled={isGenerating}
+            disabled={isGenerating || hasWinner}
             className="w-full bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity font-heading"
           >
-            {isGenerating ? "Calling..." : "Next Call (Host Only)"}
+            {hasWinner ? "Game Ended - Reset to Continue" : isGenerating ? "Calling..." : "Next Call (Host Only)"}
           </Button>
         )}
 

@@ -245,6 +245,9 @@ const GameBoard = () => {
 
   const handleResetGame = async () => {
     try {
+      // Stop auto-call
+      setIsAutoCall(false);
+      
       // Delete all game calls for this room
       const { error: callsError } = await supabase
         .from("game_calls")
@@ -253,7 +256,7 @@ const GameBoard = () => {
 
       if (callsError) throw callsError;
 
-      // Reset all bingo cards marked_cells for this room
+      // Reset all bingo cards marked_cells for this room (keeps the cards themselves)
       const { data: roomPlayers } = await supabase
         .from("players")
         .select("id")
@@ -269,7 +272,7 @@ const GameBoard = () => {
         if (cardsError) throw cardsError;
       }
 
-      // Clear winner information
+      // Clear winner information to start new game
       const { error: roomError } = await supabase
         .from("game_rooms")
         .update({ 
@@ -284,8 +287,8 @@ const GameBoard = () => {
       setWinnerName("");
 
       toast({
-        title: "Game Reset",
-        description: "All calls and marked cells have been cleared. Ready for a new round!",
+        title: "New Game Started",
+        description: "All players keep their cards. Ready to play!",
       });
 
       loadGameData();
@@ -429,6 +432,7 @@ const GameBoard = () => {
               isAutoCall={isAutoCall}
               callSpeed={callSpeed}
               voiceVolume={voiceVolume}
+              hasWinner={!!gameRoom?.winner_player_id}
             />
             {isHost && (
               <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
