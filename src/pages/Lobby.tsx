@@ -135,7 +135,7 @@ const Lobby = () => {
             .from("players")
             .insert({
               room_id: gameRoom.id,
-              user_id: user.id, // Use host's user_id but mark as AI
+              user_id: null, // AI players have no user_id
               player_name: aiPlayerNames[i],
               card_count: 1,
             })
