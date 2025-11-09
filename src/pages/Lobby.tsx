@@ -102,7 +102,7 @@ const Lobby = () => {
           four_corners: 125,
           block_of_four: 150,
           coverall: 350,
-          multi_game: 350,
+          multi_game: 675, // Sum of all: 125 + 100 + 100 + 350
         };
         
         const { data, error } = await supabase

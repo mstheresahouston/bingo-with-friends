@@ -27,7 +27,7 @@ const WIN_CONDITION_PRIZES: Record<string, number> = {
   four_corners: 125,
   block_of_four: 150,
   coverall: 350,
-  multi_game: 350,
+  multi_game: 675, // Total of all four games: 125 + 100 + 100 + 350
 };
 
 export const WinConditionDisplay = ({ winCondition, multiGameProgress }: WinConditionDisplayProps) => {

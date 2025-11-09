@@ -426,6 +426,7 @@ const GameBoard = () => {
                     playerId={player?.id}
                     playerName={player?.player_name}
                     praiseDollarValue={praiseDollarValue}
+                    multiGameProgress={gameRoom.multi_game_progress}
                   />
                 ))}
               </CardContent>

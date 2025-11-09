@@ -13,9 +13,15 @@ interface BingoCardProps {
   playerId: string;
   playerName: string;
   praiseDollarValue: number;
+  multiGameProgress?: {
+    four_corners: boolean;
+    straight: boolean;
+    diagonal: boolean;
+    coverall: boolean;
+  };
 }
 
-export const BingoCard = ({ card, calls, winCondition, playerId, playerName, praiseDollarValue }: BingoCardProps) => {
+export const BingoCard = ({ card, calls, winCondition, playerId, playerName, praiseDollarValue, multiGameProgress }: BingoCardProps) => {
   const [markedCells, setMarkedCells] = useState<number[]>(card.marked_cells || []);
   const { toast } = useToast();
   const cardData = card.card_data;
@@ -35,8 +41,27 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
       return rowIndex === colIndex || rowIndex + colIndex === 4;
     }
     
-    if (winCondition === "coverall" || winCondition === "multi_game") {
+    if (winCondition === "coverall") {
       return true; // All cells
+    }
+    
+    if (winCondition === "multi_game") {
+      // Only highlight patterns that haven't been completed yet
+      const progress = multiGameProgress || { four_corners: false, straight: false, diagonal: false, coverall: false };
+      
+      // If coverall not complete, show all cells
+      if (!progress.coverall) return true;
+      
+      // If diagonal not complete, show diagonal cells
+      if (!progress.diagonal && (rowIndex === colIndex || rowIndex + colIndex === 4)) return true;
+      
+      // If four_corners not complete, show corner cells
+      if (!progress.four_corners && (cellIndex === 0 || cellIndex === 4 || cellIndex === 20 || cellIndex === 24)) return true;
+      
+      // If straight not complete, show all cells (any line could win)
+      if (!progress.straight) return true;
+      
+      return false; // All patterns complete
     }
     
     if (winCondition === "block_of_four") {

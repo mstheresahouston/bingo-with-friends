@@ -74,63 +74,9 @@ function checkBingo(card: BingoCard, winCondition: string): boolean {
   }
 
   if (winCondition === "multi_game") {
-    // Progressive: four_corners -> straight line -> diagonal -> coverall
-    // Check four corners
-    const corners = [0, 4, 20, 24];
-    const hasFourCorners = corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree);
-    
-    // Check straight line (row or column)
-    let hasStraightLine = false;
-    for (let i = 0; i < 5; i++) {
-      let rowComplete = true;
-      let colComplete = true;
-      for (let j = 0; j < 5; j++) {
-        const rowIndex = i * 5 + j;
-        const colIndex = j * 5 + i;
-        if (!markedSet.has(rowIndex) && !cardData[i][j].isFree) {
-          rowComplete = false;
-        }
-        if (!markedSet.has(colIndex) && !cardData[j][i].isFree) {
-          colComplete = false;
-        }
-      }
-      if (rowComplete || colComplete) {
-        hasStraightLine = true;
-        break;
-      }
-    }
-    
-    // Check diagonal
-    let diag1Complete = true;
-    let diag2Complete = true;
-    for (let i = 0; i < 5; i++) {
-      const diag1Index = i * 5 + i;
-      const diag2Index = i * 5 + (4 - i);
-      
-      if (!markedSet.has(diag1Index) && !cardData[i][i].isFree) {
-        diag1Complete = false;
-      }
-      if (!markedSet.has(diag2Index) && !cardData[i][4 - i].isFree) {
-        diag2Complete = false;
-      }
-    }
-    const hasDiagonal = diag1Complete || diag2Complete;
-    
-    // Check coverall
-    let hasCoverall = true;
-    for (let i = 0; i < 5; i++) {
-      for (let j = 0; j < 5; j++) {
-        const cellIndex = i * 5 + j;
-        if (!markedSet.has(cellIndex) && !cardData[i][j].isFree) {
-          hasCoverall = false;
-          break;
-        }
-      }
-      if (!hasCoverall) break;
-    }
-    
-    // Must complete all four in order
-    return hasFourCorners && hasStraightLine && hasDiagonal && hasCoverall;
+    // For multi-game, this is checked separately for each pattern
+    // This function is not used for multi_game detection
+    return false;
   }
 
   // Default: straight line (rows, columns, diagonals)
@@ -246,20 +192,117 @@ serve(async (req) => {
           .update({ marked_cells: markedCells })
           .eq('id', card.id)
 
-        // Check for BINGO
+        // Check for BINGO or multi-game progress
         const updatedCard = { ...card, marked_cells: markedCells }
-        if (checkBingo(updatedCard as BingoCard, room.win_condition)) {
-          console.log(`${aiPlayer.player_name} got BINGO!`)
-          
-          // Check if there's already a winner
+        
+        if (room.win_condition === 'multi_game') {
+          // Check all four patterns simultaneously
           const { data: roomCheck } = await supabaseClient
             .from('game_rooms')
-            .select('winner_player_id, praise_dollar_value, multi_game_progress')
+            .select('multi_game_progress, praise_dollar_value')
             .eq('id', roomId)
             .single()
           
-          if (roomCheck && !roomCheck.winner_player_id) {
-            // Set this AI as the winner
+          if (!roomCheck) continue
+          
+          const progress = roomCheck.multi_game_progress || { four_corners: false, straight: false, diagonal: false, coverall: false }
+          let updatedProgress = { ...progress }
+          let prizesWon = 0
+          
+          // Check four corners (if not already won)
+          if (!progress.four_corners) {
+            const corners = [0, 4, 20, 24]
+            const hasFourCorners = corners.every(index => markedCells.includes(index) || cardData[Math.floor(index / 5)][index % 5].isFree)
+            if (hasFourCorners) {
+              console.log(`${aiPlayer.player_name} completed Four Corners!`)
+              updatedProgress.four_corners = true
+              prizesWon += 125
+            }
+          }
+          
+          // Check straight line (if not already won)
+          if (!progress.straight) {
+            let hasStraightLine = false
+            for (let i = 0; i < 5; i++) {
+              let rowComplete = true
+              let colComplete = true
+              for (let j = 0; j < 5; j++) {
+                const rowIndex = i * 5 + j
+                const colIndex = j * 5 + i
+                if (!markedCells.includes(rowIndex) && !cardData[i][j].isFree) rowComplete = false
+                if (!markedCells.includes(colIndex) && !cardData[j][i].isFree) colComplete = false
+              }
+              if (rowComplete || colComplete) {
+                hasStraightLine = true
+                break
+              }
+            }
+            if (hasStraightLine) {
+              console.log(`${aiPlayer.player_name} completed Straight Line!`)
+              updatedProgress.straight = true
+              prizesWon += 100
+            }
+          }
+          
+          // Check diagonal (if not already won)
+          if (!progress.diagonal) {
+            let diag1Complete = true
+            let diag2Complete = true
+            for (let i = 0; i < 5; i++) {
+              const diag1Index = i * 5 + i
+              const diag2Index = i * 5 + (4 - i)
+              if (!markedCells.includes(diag1Index) && !cardData[i][i].isFree) diag1Complete = false
+              if (!markedCells.includes(diag2Index) && !cardData[i][4 - i].isFree) diag2Complete = false
+            }
+            if (diag1Complete || diag2Complete) {
+              console.log(`${aiPlayer.player_name} completed Diagonal!`)
+              updatedProgress.diagonal = true
+              prizesWon += 100
+            }
+          }
+          
+          // Check coverall (if not already won)
+          if (!progress.coverall) {
+            let hasCoverall = true
+            for (let i = 0; i < 5; i++) {
+              for (let j = 0; j < 5; j++) {
+                const cellIndex = i * 5 + j
+                if (!markedCells.includes(cellIndex) && !cardData[i][j].isFree) {
+                  hasCoverall = false
+                  break
+                }
+              }
+              if (!hasCoverall) break
+            }
+            if (hasCoverall) {
+              console.log(`${aiPlayer.player_name} completed Coverall!`)
+              updatedProgress.coverall = true
+              prizesWon += 350
+            }
+          }
+          
+          // Update progress if any new patterns were completed
+          if (prizesWon > 0) {
+            await supabaseClient
+              .from('game_rooms')
+              .update({ multi_game_progress: updatedProgress })
+              .eq('id', roomId)
+            
+            // Award prizes for completed patterns
+            await supabaseClient
+              .from('players')
+              .update({ 
+                score: aiPlayer.score + 1,
+                total_praise_dollars: (aiPlayer as any).total_praise_dollars + prizesWon
+              })
+              .eq('id', aiPlayer.id)
+            
+            console.log(`${aiPlayer.player_name} won $${prizesWon} Praise Dollars!`)
+          }
+          
+          // Check if all four are complete
+          if (updatedProgress.four_corners && updatedProgress.straight && updatedProgress.diagonal && updatedProgress.coverall) {
+            console.log('Multi-game complete! All patterns achieved.')
             await supabaseClient
               .from('game_rooms')
               .update({
@@ -267,31 +310,42 @@ serve(async (req) => {
                 winner_announced_at: new Date().toISOString(),
               })
               .eq('id', roomId)
+          }
+        } else {
+          // Regular single-pattern bingo
+          if (checkBingo(updatedCard as BingoCard, room.win_condition)) {
+            console.log(`${aiPlayer.player_name} got BINGO!`)
             
-            // Wait briefly to detect simultaneous winners
-            await new Promise(resolve => setTimeout(resolve, 500))
+            // Check if there's already a winner
+            const { data: roomCheck } = await supabaseClient
+              .from('game_rooms')
+              .select('winner_player_id, praise_dollar_value')
+              .eq('id', roomId)
+              .single()
             
-            // Check for multiple winners (same timestamp within 1 second)
-            const { data: allPlayers } = await supabaseClient
-              .from('players')
-              .select('id, player_name, score, total_praise_dollars')
-              .eq('room_id', roomId)
-            
-            // For simplicity, count AI as sole winner
-            // In production, you'd validate all player cards
-            const winnerCount = 1
-            const splitPrize = Math.floor((roomCheck.praise_dollar_value || 100) / winnerCount)
-            
-            // Update AI player score and split prize
-            await supabaseClient
-              .from('players')
-              .update({ 
-                score: aiPlayer.score + 1,
-                total_praise_dollars: splitPrize
-              })
-              .eq('id', aiPlayer.id)
-            
-            console.log(`${aiPlayer.player_name} won the game and received $${splitPrize} Praise Dollars!`)
+            if (roomCheck && !roomCheck.winner_player_id) {
+              // Set this AI as the winner
+              await supabaseClient
+                .from('game_rooms')
+                .update({
+                  winner_player_id: aiPlayer.id,
+                  winner_announced_at: new Date().toISOString(),
+                })
+                .eq('id', roomId)
+              
+              const splitPrize = roomCheck.praise_dollar_value || 100
+              
+              // Update AI player score and prize
+              await supabaseClient
+                .from('players')
+                .update({ 
+                  score: aiPlayer.score + 1,
+                  total_praise_dollars: splitPrize
+                })
+                .eq('id', aiPlayer.id)
+              
+              console.log(`${aiPlayer.player_name} won the game and received $${splitPrize} Praise Dollars!`)
+            }
           }
         }
       }
