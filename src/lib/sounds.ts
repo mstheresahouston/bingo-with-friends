@@ -85,7 +85,8 @@ export const speakCall = (
     }
     
     utterance.rate = 0.9;
-    utterance.pitch = 1.0;
+    // Use pitch to differentiate between male and female voices
+    utterance.pitch = voiceGender === 'male' ? 0.7 : 1.2;
     utterance.volume = Math.max(0, Math.min(1, volume));
     
     // Select voice based on gender preference
@@ -138,8 +139,10 @@ export const speakCall = (
         utterance.voice = preferredVoice;
         console.log(`Using ${voiceGender} voice:`, preferredVoice.name);
       } else {
-        console.log(`No specific ${voiceGender} voice found, using default`);
+        console.log(`No specific ${voiceGender} voice found, using pitch adjustment (${utterance.pitch})`);
       }
+    } else {
+      console.log(`Using pitch ${utterance.pitch} for ${voiceGender} voice`);
     }
     
     try { window.speechSynthesis.resume(); } catch {}
