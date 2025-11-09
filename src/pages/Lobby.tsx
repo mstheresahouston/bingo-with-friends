@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Crown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const Lobby = () => {
   const [playerName, setPlayerName] = useState("");
@@ -17,8 +18,30 @@ const Lobby = () => {
   const [winCondition, setWinCondition] = useState("straight");
   const [aiPlayerCount, setAiPlayerCount] = useState("0");
   const [isLoading, setIsLoading] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [canCreateRoom, setCanCreateRoom] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const checkUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (roleData) {
+        setUserRole(roleData.role);
+        setCanCreateRoom(roleData.role === "host" || roleData.role === "vip");
+      }
+    };
+
+    checkUserRole();
+  }, []);
 
   const generateRoomCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -58,6 +81,17 @@ const Lobby = () => {
       let gameRoom;
 
       if (!finalRoomCode) {
+        // Check if user can create rooms
+        if (!canCreateRoom) {
+          toast({
+            title: "Access Restricted",
+            description: "Only Host and VIP members can create new rooms. Please enter a room code to join an existing game.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+
         // Create new room
         finalRoomCode = generateRoomCode();
         const { data, error } = await supabase
@@ -125,8 +159,8 @@ const Lobby = () => {
 
       if (cardsError) throw cardsError;
 
-      // Create AI players if requested and this is a new room
-      if (!roomCode.trim() && parseInt(aiPlayerCount) > 0) {
+      // Create AI players if requested and this is a new room (only hosts can add AI)
+      if (!roomCode.trim() && parseInt(aiPlayerCount) > 0 && userRole === "host") {
         const aiPlayerNames = ["Grace Bot", "Faith Bot", "Hope Bot"];
         const aiPlayers = [];
 
@@ -235,12 +269,20 @@ const Lobby = () => {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md backdrop-blur-sm bg-card/95 border-2 border-secondary shadow-2xl">
         <CardHeader className="text-center space-y-2">
-          <div className="flex justify-center mb-2">
+          <div className="flex justify-center items-center gap-2 mb-2">
             <Sparkles className="w-12 h-12 text-primary" />
+            {userRole && (
+              <Badge variant={userRole === "host" ? "default" : "secondary"} className="gap-1">
+                <Crown className="w-3 h-3" />
+                {userRole.toUpperCase()}
+              </Badge>
+            )}
           </div>
           <CardTitle className="text-4xl font-heading text-primary">🏠 GraceBingo</CardTitle>
           <CardDescription className="text-card-foreground/80">
-            Create or join a game room to play with your friends or community
+            {canCreateRoom 
+              ? "Create or join a game room to play with your friends or community"
+              : "Join a game room by entering a room code below"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -256,10 +298,12 @@ const Lobby = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="roomCode">Room Code (leave blank to create new)</Label>
+            <Label htmlFor="roomCode">
+              {canCreateRoom ? "Room Code (leave blank to create new)" : "Room Code"}
+            </Label>
             <Input
               id="roomCode"
-              placeholder="e.g., FAITH23"
+              placeholder={canCreateRoom ? "e.g., FAITH23" : "Enter room code to join"}
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
               className="bg-background/50 border-border text-foreground"
@@ -282,7 +326,7 @@ const Lobby = () => {
             </Select>
           </div>
 
-          {!roomCode && (
+          {!roomCode && canCreateRoom && (
             <>
               <div className="space-y-2">
                 <Label htmlFor="gameType">Game Type</Label>
@@ -310,20 +354,22 @@ const Lobby = () => {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="aiPlayerCount">AI Players (0-3)</Label>
-                <Select value={aiPlayerCount} onValueChange={setAiPlayerCount}>
-                  <SelectTrigger className="bg-background/50 border-border text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="0">No AI Players</SelectItem>
-                    <SelectItem value="1">1 AI Player</SelectItem>
-                    <SelectItem value="2">2 AI Players</SelectItem>
-                    <SelectItem value="3">3 AI Players</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {userRole === "host" && (
+                <div className="space-y-2">
+                  <Label htmlFor="aiPlayerCount">AI Players (0-3) - Host Only</Label>
+                  <Select value={aiPlayerCount} onValueChange={setAiPlayerCount}>
+                    <SelectTrigger className="bg-background/50 border-border text-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="0">No AI Players</SelectItem>
+                      <SelectItem value="1">1 AI Player</SelectItem>
+                      <SelectItem value="2">2 AI Players</SelectItem>
+                      <SelectItem value="3">3 AI Players</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </>
           )}
 
