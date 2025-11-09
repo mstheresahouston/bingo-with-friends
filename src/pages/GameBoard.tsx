@@ -46,6 +46,10 @@ const GameBoard = () => {
   const [callSpeed, setCallSpeed] = useState(5); // seconds between calls
   const [praiseDollarValue, setPraiseDollarValue] = useState(100);
   const prevCallsLengthRef = useRef(0);
+  const [voiceVolume, setVoiceVolume] = useState(() => {
+    const saved = localStorage.getItem("bingo-voice-volume");
+    return saved ? Number(saved) : 1;
+  });
 
   useEffect(() => {
     loadGameData();
@@ -147,12 +151,12 @@ const GameBoard = () => {
     // 4. A NEW call was added (not initial load)
     if (calls.length > 0 && gameRoom && !isMuted && calls.length > prevCallsLengthRef.current) {
       const latestCall = calls[calls.length - 1];
-      speakCall(latestCall.call_value, gameRoom.game_type, voiceGender);
+      speakCall(latestCall.call_value, gameRoom.game_type, voiceGender, voiceVolume);
     }
     
     // Update the ref for next comparison
     prevCallsLengthRef.current = calls.length;
-  }, [calls.length, gameRoom, isMuted, voiceGender]); // Re-run when these change
+  }, [calls.length, gameRoom, isMuted, voiceGender, voiceVolume]); // Re-run when these change
 
   const setupRealtimeSubscriptions = () => {
     const callsChannel = supabase
@@ -418,6 +422,7 @@ const GameBoard = () => {
               voiceGender={voiceGender}
               isAutoCall={isAutoCall}
               callSpeed={callSpeed}
+              voiceVolume={voiceVolume}
             />
             {isHost && (
               <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
@@ -436,7 +441,7 @@ const GameBoard = () => {
                         onClick={() => {
                           setVoiceGender('female');
                           // Test the voice
-                          speakCall('15', gameRoom.game_type, 'female');
+                          speakCall('15', gameRoom.game_type, 'female', voiceVolume);
                         }}
                         variant={voiceGender === 'female' ? 'default' : 'outline'}
                         className="flex-1"
@@ -447,7 +452,7 @@ const GameBoard = () => {
                         onClick={() => {
                           setVoiceGender('male');
                           // Test the voice
-                          speakCall('15', gameRoom.game_type, 'male');
+                          speakCall('15', gameRoom.game_type, 'male', voiceVolume);
                         }}
                         variant={voiceGender === 'male' ? 'default' : 'outline'}
                         className="flex-1"
@@ -458,6 +463,27 @@ const GameBoard = () => {
                     <p className="text-xs text-muted-foreground text-center">
                       Click to test voice
                     </p>
+                  </div>
+
+                  {/* Volume control */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <label className="text-sm font-medium text-card-foreground">Caller Volume</label>
+                      <span className="text-sm text-card-foreground/60">{Math.round(voiceVolume * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={voiceVolume}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setVoiceVolume(v);
+                        localStorage.setItem('bingo-voice-volume', String(v));
+                      }}
+                      className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
                   </div>
 
                   {/* Auto-Call Toggle */}

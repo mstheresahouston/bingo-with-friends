@@ -13,9 +13,10 @@ interface CallBoardProps {
   voiceGender: 'male' | 'female';
   isAutoCall: boolean;
   callSpeed: number;
+  voiceVolume: number;
 }
 
-export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, callSpeed }: CallBoardProps) => {
+export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, callSpeed, voiceVolume }: CallBoardProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAllCalls, setShowAllCalls] = useState(false);
   const { toast } = useToast();
@@ -60,8 +61,8 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
 
       if (error) throw error;
 
-      playCallSound();
-      speakCall(randomItem, gameRoom.game_type, voiceGender);
+      playCallSound(voiceVolume);
+      speakCall(randomItem, gameRoom.game_type, voiceGender, voiceVolume);
       
       // Trigger AI player processing
       supabase.functions.invoke('process-ai-players', {

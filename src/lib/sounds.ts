@@ -1,8 +1,15 @@
 // Sound utility functions using Web Audio API
 const audioContext = typeof window !== 'undefined' ? new (window.AudioContext || (window as any).webkitAudioContext)() : null;
 
-export const playCallSound = () => {
+export const playCallSound = (volume: number = 1) => {
   if (!audioContext) return;
+  
+  // Ensure audio context is unlocked (some browsers start it suspended)
+  try {
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+  } catch {}
   
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
@@ -13,7 +20,8 @@ export const playCallSound = () => {
   oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
   oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
   
-  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+  const vol = Math.max(0, Math.min(1, volume));
+  gainNode.gain.setValueAtTime(0.3 * vol, audioContext.currentTime);
   gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
   
   oscillator.start(audioContext.currentTime);
@@ -45,11 +53,16 @@ export const playBingoSound = () => {
   });
 };
 
-export const speakCall = (value: string, gameType: string, voiceGender: 'male' | 'female' = 'female') => {
+export const speakCall = (
+  value: string,
+  gameType: string,
+  voiceGender: 'male' | 'female' = 'female',
+  volume: number = 1
+) => {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   
   // Cancel any ongoing speech
-  window.speechSynthesis.cancel();
+  try { window.speechSynthesis.cancel(); } catch {}
   
   const speak = () => {
     const utterance = new SpeechSynthesisUtterance();
@@ -73,7 +86,7 @@ export const speakCall = (value: string, gameType: string, voiceGender: 'male' |
     
     utterance.rate = 0.9;
     utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    utterance.volume = Math.max(0, Math.min(1, volume));
     
     // Select voice based on gender preference
     const voices = window.speechSynthesis.getVoices();
@@ -93,6 +106,7 @@ export const speakCall = (value: string, gameType: string, voiceGender: 'male' |
       }
     }
     
+    try { window.speechSynthesis.resume(); } catch {}
     window.speechSynthesis.speak(utterance);
   };
   
