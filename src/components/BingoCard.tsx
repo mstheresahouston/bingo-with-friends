@@ -22,6 +22,32 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
 
   const calledValues = calls.map((call) => call.call_value);
 
+  // Determine which cells are part of the winning pattern
+  const isPartOfPattern = (rowIndex: number, colIndex: number): boolean => {
+    const cellIndex = rowIndex * 5 + colIndex;
+    
+    if (winCondition === "four_corners") {
+      return cellIndex === 0 || cellIndex === 4 || cellIndex === 20 || cellIndex === 24;
+    }
+    
+    if (winCondition === "diagonal") {
+      // Main diagonal (top-left to bottom-right) or anti-diagonal (top-right to bottom-left)
+      return rowIndex === colIndex || rowIndex + colIndex === 4;
+    }
+    
+    if (winCondition === "coverall" || winCondition === "multi_game") {
+      return true; // All cells
+    }
+    
+    if (winCondition === "block_of_four") {
+      // Highlight all possible 2x2 blocks (show that any block works)
+      return true; // Show all cells as potential
+    }
+    
+    // For straight line, all cells could be part of a winning line
+    return true;
+  };
+
   const toggleCell = async (rowIndex: number, colIndex: number) => {
     const cellIndex = rowIndex * 5 + colIndex;
     const cell = cardData[rowIndex][colIndex];
@@ -317,12 +343,35 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
     return diag1Complete || diag2Complete;
   };
 
+  // Get pattern description
+  const getPatternDescription = () => {
+    switch (winCondition) {
+      case "straight":
+        return "Complete any row, column, or diagonal";
+      case "four_corners":
+        return "Mark all four corner squares";
+      case "block_of_four":
+        return "Mark any 2x2 block of squares";
+      case "diagonal":
+        return "Complete either diagonal line";
+      case "coverall":
+        return "Mark all squares on the card";
+      case "multi_game":
+        return "Progressive: Corners → Line → Diagonal → Coverall";
+      default:
+        return "Complete the winning pattern";
+    }
+  };
+
   return (
     <Card className="bg-gradient-to-br from-card to-background border-2 border-secondary">
       <CardHeader>
-        <CardTitle className="font-heading text-card-foreground">
-          {playerName}'s Card
+        <CardTitle className="font-heading text-card-foreground flex items-center justify-between">
+          <span>{playerName}'s Card</span>
         </CardTitle>
+        <p className="text-xs text-muted-foreground mt-1">
+          {getPatternDescription()}
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* BINGO Header */}
@@ -347,11 +396,12 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
         </div>
         
         {/* Bingo Grid */}
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-5 gap-2 relative">
           {cardData.map((row: any[], rowIndex: number) =>
             row.map((cell: any, colIndex: number) => {
               const cellIndex = rowIndex * 5 + colIndex;
               const isMarked = markedCells.includes(cellIndex) || cell.isFree;
+              const isPattern = isPartOfPattern(rowIndex, colIndex);
 
               return (
                 <button
@@ -359,16 +409,24 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
                   onClick={() => toggleCell(rowIndex, colIndex)}
                   className={cn(
                     "aspect-square rounded-lg font-heading text-sm md:text-base font-bold transition-all duration-200",
-                    "flex items-center justify-center border-2",
+                    "flex items-center justify-center border-2 relative",
                     cell.isFree
                       ? "bg-accent text-accent-foreground border-accent cursor-default"
                       : isMarked
                       ? "bg-primary text-primary-foreground border-primary shadow-lg scale-95"
+                      : isPattern && winCondition === "four_corners"
+                      ? "bg-card text-card-foreground border-accent/60 hover:border-secondary hover:scale-105 ring-2 ring-accent/30"
+                      : isPattern && winCondition === "diagonal"
+                      ? "bg-card text-card-foreground border-accent/60 hover:border-secondary hover:scale-105 ring-2 ring-accent/30"
                       : "bg-card text-card-foreground border-border hover:border-secondary hover:scale-105"
                   )}
                   disabled={cell.isFree}
                 >
                   {cell.value}
+                  {/* Pattern indicator dot for specific patterns */}
+                  {!isMarked && isPattern && (winCondition === "four_corners" || winCondition === "diagonal") && (
+                    <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
+                  )}
                 </button>
               );
             })
