@@ -8,6 +8,7 @@ import { BingoCard } from "@/components/BingoCard";
 import { CallBoard } from "@/components/CallBoard";
 import { Leaderboard } from "@/components/Leaderboard";
 import { WinnerAnnouncement } from "@/components/WinnerAnnouncement";
+import { WinConditionDisplay } from "@/components/WinConditionDisplay";
 import Chat from "@/components/Chat";
 import { Crown, LogOut, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { speakCall } from "@/lib/sounds";
@@ -272,12 +273,18 @@ const GameBoard = () => {
         if (cardsError) throw cardsError;
       }
 
-      // Clear winner information to start new game
+      // Clear winner information and reset multi-game progress
       const { error: roomError } = await supabase
         .from("game_rooms")
         .update({ 
           winner_player_id: null,
-          winner_announced_at: null 
+          winner_announced_at: null,
+          multi_game_progress: {
+            four_corners: false,
+            straight: false,
+            diagonal: false,
+            coverall: false
+          }
         })
         .eq("id", gameRoom.id);
 
@@ -392,6 +399,10 @@ const GameBoard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Bingo Cards */}
           <div className="lg:col-span-2 space-y-4">
+            <WinConditionDisplay 
+              winCondition={gameRoom.win_condition}
+              multiGameProgress={gameRoom.multi_game_progress}
+            />
             <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
               <CardHeader>
                 <CardTitle className="font-heading text-card-foreground">Your Bingo Cards</CardTitle>

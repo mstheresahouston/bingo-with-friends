@@ -94,6 +94,17 @@ const Lobby = () => {
 
         // Create new room
         finalRoomCode = generateRoomCode();
+        
+        // Set prize value based on win condition
+        const prizeValues: Record<string, number> = {
+          straight: 100,
+          diagonal: 100,
+          four_corners: 125,
+          block_of_four: 150,
+          coverall: 350,
+          multi_game: 350,
+        };
+        
         const { data, error } = await supabase
           .from("game_rooms")
           .insert({
@@ -102,6 +113,7 @@ const Lobby = () => {
             status: "waiting",
             game_type: gameType,
             win_condition: winCondition,
+            praise_dollar_value: prizeValues[winCondition] || 100,
           })
           .select()
           .single();

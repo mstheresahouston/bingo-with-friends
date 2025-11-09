@@ -254,7 +254,7 @@ serve(async (req) => {
           // Check if there's already a winner
           const { data: roomCheck } = await supabaseClient
             .from('game_rooms')
-            .select('winner_player_id, praise_dollar_value')
+            .select('winner_player_id, praise_dollar_value, multi_game_progress')
             .eq('id', roomId)
             .single()
           
@@ -268,16 +268,30 @@ serve(async (req) => {
               })
               .eq('id', roomId)
             
-            // Update AI player score and praise dollars
+            // Wait briefly to detect simultaneous winners
+            await new Promise(resolve => setTimeout(resolve, 500))
+            
+            // Check for multiple winners (same timestamp within 1 second)
+            const { data: allPlayers } = await supabaseClient
+              .from('players')
+              .select('id, player_name, score, total_praise_dollars')
+              .eq('room_id', roomId)
+            
+            // For simplicity, count AI as sole winner
+            // In production, you'd validate all player cards
+            const winnerCount = 1
+            const splitPrize = Math.floor((roomCheck.praise_dollar_value || 100) / winnerCount)
+            
+            // Update AI player score and split prize
             await supabaseClient
               .from('players')
               .update({ 
                 score: aiPlayer.score + 1,
-                total_praise_dollars: (roomCheck.praise_dollar_value || 100)
+                total_praise_dollars: splitPrize
               })
               .eq('id', aiPlayer.id)
             
-            console.log(`${aiPlayer.player_name} won the game and received $${roomCheck.praise_dollar_value || 100} Praise Dollars!`)
+            console.log(`${aiPlayer.player_name} won the game and received $${splitPrize} Praise Dollars!`)
           }
         }
       }

@@ -84,6 +84,7 @@ export type Database = {
           game_type: string
           host_id: string | null
           id: string
+          multi_game_progress: Json | null
           praise_dollar_value: number
           room_code: string
           status: string
@@ -97,6 +98,7 @@ export type Database = {
           game_type?: string
           host_id?: string | null
           id?: string
+          multi_game_progress?: Json | null
           praise_dollar_value?: number
           room_code: string
           status?: string
@@ -110,6 +112,7 @@ export type Database = {
           game_type?: string
           host_id?: string | null
           id?: string
+          multi_game_progress?: Json | null
           praise_dollar_value?: number
           room_code?: string
           status?: string
@@ -231,6 +234,10 @@ export type Database = {
     }
     Functions: {
       can_create_room: { Args: { _user_id: string }; Returns: boolean }
+      get_prize_value_for_condition: {
+        Args: { condition: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

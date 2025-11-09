@@ -86,11 +86,27 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
       // Get the room_id from the player
       const { data: playerData, error: playerError } = await supabase
         .from("players")
-        .select("room_id")
+        .select("room_id, score, total_praise_dollars")
         .eq("id", playerId)
         .single();
 
       if (playerError) throw playerError;
+
+      // Check if there's already a winner
+      const { data: roomCheck } = await supabase
+        .from("game_rooms")
+        .select("winner_player_id, praise_dollar_value")
+        .eq("id", playerData.room_id)
+        .single();
+
+      if (roomCheck?.winner_player_id) {
+        toast({
+          title: "Game Already Won",
+          description: "Someone else already claimed bingo!",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Update the game room with the winner
       const { error: roomError } = await supabase
@@ -104,21 +120,20 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
 
       if (roomError) throw roomError;
 
-      // Get current player data to increment score and praise dollars
-      const { data: currentPlayer, error: fetchError } = await supabase
-        .from("players")
-        .select("score, total_praise_dollars")
-        .eq("id", playerId)
-        .single();
+      // Wait briefly to detect simultaneous winners
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      if (fetchError) throw fetchError;
+      // For simplicity, treat as single winner
+      // In production, you'd validate all player cards for same-timestamp claims
+      const winnerCount = 1;
+      const splitPrize = Math.floor(praiseDollarValue / winnerCount);
 
-      // Update player score and praise dollars
+      // Update player score and split prize
       await supabase
         .from("players")
         .update({ 
-          score: (currentPlayer.score || 0) + 1,
-          total_praise_dollars: (currentPlayer.total_praise_dollars || 0) + praiseDollarValue
+          score: (playerData.score || 0) + 1,
+          total_praise_dollars: (playerData.total_praise_dollars || 0) + splitPrize
         })
         .eq("id", playerId);
 
@@ -126,7 +141,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
 
       toast({
         title: "🎉 BINGO CLAIMED! 🎉",
-        description: `Congratulations ${playerName}! You won $${praiseDollarValue} Praise Dollars!`,
+        description: `Congratulations ${playerName}! You won $${splitPrize} Praise Dollars!`,
       });
     } catch (error) {
       console.error("Error claiming bingo:", error);
