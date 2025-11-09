@@ -15,6 +15,7 @@ const Lobby = () => {
   const [cardCount, setCardCount] = useState("1");
   const [gameType, setGameType] = useState("words");
   const [winCondition, setWinCondition] = useState("straight");
+  const [aiPlayerCount, setAiPlayerCount] = useState("0");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -123,6 +124,39 @@ const Lobby = () => {
         .insert(cards);
 
       if (cardsError) throw cardsError;
+
+      // Create AI players if requested and this is a new room
+      if (!roomCode.trim() && parseInt(aiPlayerCount) > 0) {
+        const aiPlayerNames = ["Grace Bot", "Faith Bot", "Hope Bot"];
+        const aiPlayers = [];
+
+        for (let i = 0; i < parseInt(aiPlayerCount); i++) {
+          const { data: aiPlayerData, error: aiPlayerError } = await supabase
+            .from("players")
+            .insert({
+              room_id: gameRoom.id,
+              user_id: user.id, // Use host's user_id but mark as AI
+              player_name: aiPlayerNames[i],
+              card_count: 1,
+            })
+            .select()
+            .single();
+
+          if (aiPlayerError) throw aiPlayerError;
+
+          // Generate one card for each AI player
+          const aiCardData = generateBingoCard(gameType);
+          const { error: aiCardError } = await supabase
+            .from("bingo_cards")
+            .insert({
+              player_id: aiPlayerData.id,
+              card_data: aiCardData,
+              marked_cells: [],
+            });
+
+          if (aiCardError) throw aiCardError;
+        }
+      }
 
       toast({
         title: "Success!",
@@ -272,6 +306,21 @@ const Lobby = () => {
                   <SelectContent className="bg-card border-border">
                     <SelectItem value="straight">Straight Line (any direction)</SelectItem>
                     <SelectItem value="coverall">Cover All (full card)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="aiPlayerCount">AI Players (0-3)</Label>
+                <Select value={aiPlayerCount} onValueChange={setAiPlayerCount}>
+                  <SelectTrigger className="bg-background/50 border-border text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="0">No AI Players</SelectItem>
+                    <SelectItem value="1">1 AI Player</SelectItem>
+                    <SelectItem value="2">2 AI Players</SelectItem>
+                    <SelectItem value="3">3 AI Players</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

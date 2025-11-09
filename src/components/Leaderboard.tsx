@@ -23,27 +23,31 @@ export const Leaderboard = ({ players, currentPlayerId }: LeaderboardProps) => {
           {players.length === 0 ? (
             <p className="text-center text-card-foreground/60 py-4">No players yet</p>
           ) : (
-            players.map((player, index) => (
-              <div
-                key={player.id}
-                className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
-                  player.id === currentPlayerId
-                    ? "bg-primary/20 border-primary"
-                    : "bg-card border-border"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {index === 0 && <Trophy className="w-5 h-5 text-accent" />}
-                  {index === 1 && <Medal className="w-5 h-5 text-secondary" />}
-                  {index === 2 && <Medal className="w-5 h-5 text-muted-foreground" />}
-                  {index > 2 && <span className="w-5 text-center font-bold">{index + 1}</span>}
-                  <span className="font-heading font-semibold text-card-foreground">
-                    {player.player_name}
-                  </span>
+            players.map((player, index) => {
+              const isAI = player.player_name.endsWith("Bot");
+              return (
+                <div
+                  key={player.id}
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                    player.id === currentPlayerId
+                      ? "bg-primary/20 border-primary"
+                      : "bg-card border-border"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {index === 0 && <Trophy className="w-5 h-5 text-accent" />}
+                    {index === 1 && <Medal className="w-5 h-5 text-secondary" />}
+                    {index === 2 && <Medal className="w-5 h-5 text-muted-foreground" />}
+                    {index > 2 && <span className="w-5 text-center font-bold">{index + 1}</span>}
+                    <span className="font-heading font-semibold text-card-foreground">
+                      {player.player_name}
+                      {isAI && <span className="text-xs ml-2 text-muted-foreground">🤖 AI</span>}
+                    </span>
+                  </div>
+                  <span className="text-lg font-bold text-primary">{player.score}</span>
                 </div>
-                <span className="text-lg font-bold text-primary">{player.score}</span>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </CardContent>

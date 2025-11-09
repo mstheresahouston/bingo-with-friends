@@ -58,6 +58,14 @@ export const CallBoard = ({ calls, isHost, gameRoom }: CallBoardProps) => {
       playCallSound();
       speakCall(randomItem, gameRoom.game_type);
       
+      // Trigger AI player processing
+      supabase.functions.invoke('process-ai-players', {
+        body: {
+          roomId: gameRoom.id,
+          callValue: randomItem,
+        },
+      }).catch(err => console.error('AI player processing error:', err));
+      
       toast({
         title: "New Call!",
         description: `"${randomItem}" has been called`,
