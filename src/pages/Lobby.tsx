@@ -349,7 +349,11 @@ const Lobby = () => {
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
                     <SelectItem value="straight">Straight Line (any direction)</SelectItem>
+                    <SelectItem value="four_corners">Four Corners</SelectItem>
+                    <SelectItem value="block_of_four">Block of Four</SelectItem>
+                    <SelectItem value="diagonal">Diagonal Only</SelectItem>
                     <SelectItem value="coverall">Cover All (full card)</SelectItem>
+                    <SelectItem value="multi_game">Multi-Game (Progressive)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

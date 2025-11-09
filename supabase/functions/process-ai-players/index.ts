@@ -30,6 +30,110 @@ function checkBingo(card: BingoCard, winCondition: string): boolean {
     return true;
   }
 
+  if (winCondition === "four_corners") {
+    // Check all four corners: [0,0], [0,4], [4,0], [4,4]
+    const corners = [0, 4, 20, 24]; // top-left, top-right, bottom-left, bottom-right
+    return corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree);
+  }
+
+  if (winCondition === "block_of_four") {
+    // Check for any 2x2 block
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        const indices = [
+          i * 5 + j,
+          i * 5 + j + 1,
+          (i + 1) * 5 + j,
+          (i + 1) * 5 + j + 1
+        ];
+        const blockComplete = indices.every(index => 
+          markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree
+        );
+        if (blockComplete) return true;
+      }
+    }
+    return false;
+  }
+
+  if (winCondition === "diagonal") {
+    // Check both diagonals
+    let diag1Complete = true;
+    let diag2Complete = true;
+    for (let i = 0; i < 5; i++) {
+      const diag1Index = i * 5 + i;
+      const diag2Index = i * 5 + (4 - i);
+      
+      if (!markedSet.has(diag1Index) && !cardData[i][i].isFree) {
+        diag1Complete = false;
+      }
+      if (!markedSet.has(diag2Index) && !cardData[i][4 - i].isFree) {
+        diag2Complete = false;
+      }
+    }
+    return diag1Complete || diag2Complete;
+  }
+
+  if (winCondition === "multi_game") {
+    // Progressive: four_corners -> straight line -> diagonal -> coverall
+    // Check four corners
+    const corners = [0, 4, 20, 24];
+    const hasFourCorners = corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree);
+    
+    // Check straight line (row or column)
+    let hasStraightLine = false;
+    for (let i = 0; i < 5; i++) {
+      let rowComplete = true;
+      let colComplete = true;
+      for (let j = 0; j < 5; j++) {
+        const rowIndex = i * 5 + j;
+        const colIndex = j * 5 + i;
+        if (!markedSet.has(rowIndex) && !cardData[i][j].isFree) {
+          rowComplete = false;
+        }
+        if (!markedSet.has(colIndex) && !cardData[j][i].isFree) {
+          colComplete = false;
+        }
+      }
+      if (rowComplete || colComplete) {
+        hasStraightLine = true;
+        break;
+      }
+    }
+    
+    // Check diagonal
+    let diag1Complete = true;
+    let diag2Complete = true;
+    for (let i = 0; i < 5; i++) {
+      const diag1Index = i * 5 + i;
+      const diag2Index = i * 5 + (4 - i);
+      
+      if (!markedSet.has(diag1Index) && !cardData[i][i].isFree) {
+        diag1Complete = false;
+      }
+      if (!markedSet.has(diag2Index) && !cardData[i][4 - i].isFree) {
+        diag2Complete = false;
+      }
+    }
+    const hasDiagonal = diag1Complete || diag2Complete;
+    
+    // Check coverall
+    let hasCoverall = true;
+    for (let i = 0; i < 5; i++) {
+      for (let j = 0; j < 5; j++) {
+        const cellIndex = i * 5 + j;
+        if (!markedSet.has(cellIndex) && !cardData[i][j].isFree) {
+          hasCoverall = false;
+          break;
+        }
+      }
+      if (!hasCoverall) break;
+    }
+    
+    // Must complete all four in order
+    return hasFourCorners && hasStraightLine && hasDiagonal && hasCoverall;
+  }
+
+  // Default: straight line (rows, columns, diagonals)
   // Check rows
   for (let i = 0; i < 5; i++) {
     let rowComplete = true;
