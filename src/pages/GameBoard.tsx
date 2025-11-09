@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BingoCard } from "@/components/BingoCard";
 import { CallBoard } from "@/components/CallBoard";
 import { Leaderboard } from "@/components/Leaderboard";
+import { WinnerAnnouncement } from "@/components/WinnerAnnouncement";
 import Chat from "@/components/Chat";
 import { Crown, LogOut, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { speakCall } from "@/lib/sounds";
@@ -38,6 +39,8 @@ const GameBoard = () => {
     const saved = localStorage.getItem("bingo-voice-muted");
     return saved === "true";
   });
+  const [showWinner, setShowWinner] = useState(false);
+  const [winnerName, setWinnerName] = useState("");
 
   useEffect(() => {
     loadGameData();
@@ -163,15 +166,33 @@ const GameBoard = () => {
           table: "players",
         },
         async (payload) => {
-          // Check if score was updated
-          if (payload.new.score > payload.old.score) {
-            const { data: { user } } = await supabase.auth.getUser();
-            // Only show announcement if it's not the current user
-            if (user && user.id !== payload.new.user_id) {
-              toast({
-                title: "🎉 BINGO!",
-                description: `${payload.new.player_name} just got BINGO!`,
-              });
+          loadGameData();
+        }
+      )
+      .subscribe();
+
+    const roomsChannel = supabase
+      .channel(`rooms-${roomCode}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "game_rooms",
+        },
+        async (payload) => {
+          // Check if a winner was announced
+          if (payload.new.winner_player_id && !payload.old.winner_player_id) {
+            // Fetch the winner's name
+            const { data: winnerData } = await supabase
+              .from("players")
+              .select("player_name")
+              .eq("id", payload.new.winner_player_id)
+              .single();
+
+            if (winnerData) {
+              setWinnerName(winnerData.player_name);
+              setShowWinner(true);
             }
           }
           loadGameData();
@@ -182,6 +203,7 @@ const GameBoard = () => {
     return () => {
       supabase.removeChannel(callsChannel);
       supabase.removeChannel(playersChannel);
+      supabase.removeChannel(roomsChannel);
     };
   };
 
@@ -226,6 +248,20 @@ const GameBoard = () => {
         if (cardsError) throw cardsError;
       }
 
+      // Clear winner information
+      const { error: roomError } = await supabase
+        .from("game_rooms")
+        .update({ 
+          winner_player_id: null,
+          winner_announced_at: null 
+        })
+        .eq("id", gameRoom.id);
+
+      if (roomError) throw roomError;
+
+      setShowWinner(false);
+      setWinnerName("");
+
       toast({
         title: "Game Reset",
         description: "All calls and marked cells have been cleared. Ready for a new round!",
@@ -252,6 +288,12 @@ const GameBoard = () => {
 
   return (
     <div className="min-h-screen p-4 md:p-8">
+      <WinnerAnnouncement 
+        winnerName={winnerName}
+        isOpen={showWinner}
+        onClose={() => setShowWinner(false)}
+      />
+      
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
@@ -330,7 +372,7 @@ const GameBoard = () => {
               <CardHeader>
                 <CardTitle className="font-heading text-card-foreground">Your Bingo Cards</CardTitle>
                 <CardDescription className="text-card-foreground/80">
-                  Tap a square when it's called
+                  Mark the squares and claim bingo when you get a winning pattern
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

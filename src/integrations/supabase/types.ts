@@ -88,6 +88,8 @@ export type Database = {
           status: string
           updated_at: string
           win_condition: string
+          winner_announced_at: string | null
+          winner_player_id: string | null
         }
         Insert: {
           created_at?: string
@@ -98,6 +100,8 @@ export type Database = {
           status?: string
           updated_at?: string
           win_condition?: string
+          winner_announced_at?: string | null
+          winner_player_id?: string | null
         }
         Update: {
           created_at?: string
@@ -108,8 +112,18 @@ export type Database = {
           status?: string
           updated_at?: string
           win_condition?: string
+          winner_announced_at?: string | null
+          winner_player_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "game_rooms_winner_player_id_fkey"
+            columns: ["winner_player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
