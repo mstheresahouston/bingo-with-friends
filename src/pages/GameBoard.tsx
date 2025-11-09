@@ -265,21 +265,34 @@ const GameBoard = () => {
       // Reset all bingo cards marked_cells for this room (keeps the cards themselves)
       const { data: roomPlayers } = await supabase
         .from("players")
-        .select("id")
+        .select("id, player_name")
         .eq("room_id", gameRoom.id);
 
-      console.log("Reset: Found players:", roomPlayers?.length);
+      console.log("Reset: Found players:", roomPlayers?.length, roomPlayers?.map(p => p.player_name));
 
       if (roomPlayers) {
         const playerIds = roomPlayers.map(p => p.id);
+        console.log("Reset: Player IDs to clear cards for:", playerIds);
+        
+        // First check how many cards exist
+        const { data: existingCards } = await supabase
+          .from("bingo_cards")
+          .select("id, player_id, marked_cells")
+          .in("player_id", playerIds);
+        
+        console.log("Reset: Found existing cards:", existingCards?.length, existingCards?.map(c => ({ id: c.id, player_id: c.player_id, marked: Array.isArray(c.marked_cells) ? c.marked_cells.length : 0 })));
+        
         const { data: updatedCards, error: cardsError } = await supabase
           .from("bingo_cards")
           .update({ marked_cells: [] })
           .in("player_id", playerIds)
           .select();
 
-        if (cardsError) throw cardsError;
-        console.log("Reset: Updated cards count:", updatedCards?.length);
+        if (cardsError) {
+          console.error("Reset: Card update error:", cardsError);
+          throw cardsError;
+        }
+        console.log("Reset: Updated cards count:", updatedCards?.length, "Card IDs:", updatedCards?.map(c => c.id));
       }
 
       // Clear winner information and reset multi-game progress
