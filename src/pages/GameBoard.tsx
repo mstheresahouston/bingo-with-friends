@@ -249,6 +249,11 @@ const GameBoard = () => {
       // Stop auto-call
       setIsAutoCall(false);
       
+      // Immediately clear local state
+      setCalls([]);
+      setShowWinner(false);
+      setWinnerName("");
+      
       // Delete all game calls for this room
       const { error: callsError } = await supabase
         .from("game_calls")
@@ -289,9 +294,6 @@ const GameBoard = () => {
         .eq("id", gameRoom.id);
 
       if (roomError) throw roomError;
-
-      setShowWinner(false);
-      setWinnerName("");
 
       toast({
         title: "New Game Started",
