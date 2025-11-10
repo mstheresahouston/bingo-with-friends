@@ -123,38 +123,62 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
       return;
     }
 
-    // Verify all marked cells correspond to called values
-    const allMarkedValid = markedCells.every((cellIndex) => {
-      const row = Math.floor(cellIndex / 5);
-      const col = cellIndex % 5;
-      const cell = cardData[row][col];
-      return cell.isFree || calledValues.includes(cell.value);
-    });
-
-    if (!allMarkedValid) {
-      toast({
-        title: "Invalid Bingo",
-        description: "You have marked numbers that haven't been called yet!",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
-      // Get the room_id from the player
+      // Get the room_id from the player first to fetch fresh calls
       const { data: playerData, error: playerError } = await supabase
         .from("players")
-        .select("room_id, score, total_praise_dollars")
+        .select("room_id")
         .eq("id", playerId)
         .single();
 
       if (playerError) throw playerError;
 
+      // Fetch the latest calls from database to avoid race conditions
+      const { data: freshCalls, error: callsError } = await supabase
+        .from("game_calls")
+        .select("call_value")
+        .eq("room_id", playerData.room_id);
+
+      if (callsError) throw callsError;
+
+      const freshCalledValues = freshCalls?.map((call) => call.call_value) || [];
+
+      // Verify all marked cells correspond to called values
+      const invalidCells: string[] = [];
+      const allMarkedValid = markedCells.every((cellIndex) => {
+        const row = Math.floor(cellIndex / 5);
+        const col = cellIndex % 5;
+        const cell = cardData[row][col];
+        const isValid = cell.isFree || freshCalledValues.includes(cell.value);
+        if (!isValid) {
+          invalidCells.push(cell.value);
+        }
+        return isValid;
+      });
+
+      if (!allMarkedValid) {
+        toast({
+          title: "Invalid Bingo",
+          description: `These marked values haven't been called: ${invalidCells.join(", ")}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Now proceed with claiming - fetch player data again with full details
+      const { data: playerFullData, error: playerFullError } = await supabase
+        .from("players")
+        .select("room_id, score, total_praise_dollars")
+        .eq("id", playerId)
+        .single();
+
+      if (playerFullError) throw playerFullError;
+
       // Get current room state
       const { data: roomCheck } = await supabase
         .from("game_rooms")
         .select("winner_player_id, praise_dollar_value, win_condition, multi_game_progress")
-        .eq("id", playerData.room_id)
+        .eq("id", playerFullData.room_id)
         .single();
 
       if (!roomCheck) throw new Error("Room not found");
@@ -171,7 +195,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
         const { data: winnerCheck } = await supabase
           .from("game_rooms")
           .select("four_corners_winner_id, straight_winner_id, diagonal_winner_id, winner_player_id")
-          .eq("id", playerData.room_id)
+          .eq("id", playerFullData.room_id)
           .single();
 
         if (!winnerCheck) throw new Error("Room not found");
@@ -246,14 +270,14 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
           await supabase
             .from("game_rooms")
             .update(updateData)
-            .eq("id", playerData.room_id);
+            .eq("id", playerFullData.room_id);
 
           // Award prize
           await supabase
             .from("players")
             .update({ 
-              score: (playerData.score || 0) + 1,
-              total_praise_dollars: (playerData.total_praise_dollars || 0) + prizeAmount
+              score: (playerFullData.score || 0) + 1,
+              total_praise_dollars: (playerFullData.total_praise_dollars || 0) + prizeAmount
             })
             .eq("id", playerId);
 
@@ -285,7 +309,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
         const { data: existingWin } = await supabase
           .from("game_winners")
           .select("id")
-          .eq("room_id", playerData.room_id)
+          .eq("room_id", playerFullData.room_id)
           .eq("player_id", playerId)
           .eq("win_type", winType)
           .maybeSingle();
@@ -304,7 +328,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
         const { data: recentWinners } = await supabase
           .from("game_winners")
           .select("player_id")
-          .eq("room_id", playerData.room_id)
+          .eq("room_id", playerFullData.room_id)
           .eq("win_type", winType)
           .gte("claimed_at", threeSecondsAgo);
 
@@ -316,7 +340,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
         const { error: winnerError } = await supabase
           .from("game_winners")
           .insert({
-            room_id: playerData.room_id,
+            room_id: playerFullData.room_id,
             player_id: playerId,
             win_type: winType,
             prize_amount: splitPrize,
@@ -332,7 +356,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
               winner_player_id: playerId,
               winner_announced_at: new Date().toISOString(),
             })
-            .eq("id", playerData.room_id)
+            .eq("id", playerFullData.room_id)
             .is("winner_player_id", null);
         }
 
@@ -340,8 +364,8 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
         await supabase
           .from("players")
           .update({ 
-            score: (playerData.score || 0) + 1,
-            total_praise_dollars: (playerData.total_praise_dollars || 0) + splitPrize
+            score: (playerFullData.score || 0) + 1,
+            total_praise_dollars: (playerFullData.total_praise_dollars || 0) + splitPrize
           })
           .eq("id", playerId);
 

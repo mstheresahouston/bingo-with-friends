@@ -10,20 +10,10 @@ import { Leaderboard } from "@/components/Leaderboard";
 import { WinnerAnnouncement } from "@/components/WinnerAnnouncement";
 import { WinConditionDisplay } from "@/components/WinConditionDisplay";
 import { AiBotWinFlash } from "@/components/AiBotWinFlash";
+import { ResetGameDialog } from "@/components/ResetGameDialog";
 import Chat from "@/components/Chat";
-import { Crown, LogOut, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Crown, LogOut, Volume2, VolumeX } from "lucide-react";
 import { speakCall } from "@/lib/sounds";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 const GameBoard = () => {
   const { roomCode } = useParams();
@@ -325,7 +315,7 @@ const GameBoard = () => {
     });
   };
 
-  const handleResetGame = async () => {
+  const handleResetGame = async (newWinCondition?: string) => {
     try {
       // Stop auto-call
       setIsAutoCall(false);
@@ -475,34 +465,10 @@ const GameBoard = () => {
                   {isMuted ? "Unmute" : "Mute"}
                 </Button>
                 {isHost && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="border-accent text-accent hover:bg-accent/10"
-                      >
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        Reset Game
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="bg-card border-border">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="text-card-foreground">Reset Game?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-card-foreground/80">
-                          This will clear all calls and marked cells for all players. Scores and players will be kept. This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-background text-foreground border-border">Cancel</AlertDialogCancel>
-                        <AlertDialogAction 
-                          onClick={handleResetGame}
-                          className="bg-accent hover:bg-accent/90 text-accent-foreground"
-                        >
-                          Reset Game
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <ResetGameDialog 
+                    onReset={handleResetGame}
+                    currentWinCondition={gameRoom.win_condition}
+                  />
                 )}
                 <Button
                   onClick={handleLeaveGame}

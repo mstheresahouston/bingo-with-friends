@@ -23,13 +23,6 @@ export const AiBotWinFlash = ({ botName, gameType, isVisible, onComplete }: AiBo
 
   if (!isVisible && !show) return null;
 
-  const gameTypeDisplay = {
-    'four_corners': 'Four Corners',
-    'straight': 'Straight Line',
-    'diagonal': 'Diagonal',
-    'coverall': 'Coverall'
-  }[gameType] || gameType;
-
   return (
     <div
       className={`fixed top-1/3 left-0 right-0 z-50 pointer-events-none transition-all duration-500 ${
@@ -43,10 +36,7 @@ export const AiBotWinFlash = ({ botName, gameType, isVisible, onComplete }: AiBo
               🤖 AI BOT WIN! 🤖
             </div>
             <div className="text-3xl font-heading text-white/90">
-              <span className="font-bold text-accent-foreground">{botName}</span>
-            </div>
-            <div className="text-2xl font-heading text-white/80">
-              completed <span className="font-bold text-accent-foreground">{gameTypeDisplay}</span>!
+              <span className="font-bold text-accent-foreground">{botName}</span> has won the game!
             </div>
           </div>
         </div>
