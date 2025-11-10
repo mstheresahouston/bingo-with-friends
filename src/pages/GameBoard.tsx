@@ -454,7 +454,7 @@ const GameBoard = () => {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle className="text-3xl font-heading text-primary flex items-center gap-2">
-                  🎟️ GraceBingo
+                  🎟️ BINGO with Friends
                   {isHost && <Crown className="w-6 h-6 text-accent" />}
                 </CardTitle>
                 <CardDescription className="text-card-foreground/80">

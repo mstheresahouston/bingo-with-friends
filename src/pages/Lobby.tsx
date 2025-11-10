@@ -309,7 +309,7 @@ const Lobby = () => {
               </Badge>
             )}
           </div>
-          <CardTitle className="text-4xl font-heading text-primary">🏠 GraceBingo</CardTitle>
+          <CardTitle className="text-4xl font-heading text-primary">🏠 BINGO with Friends</CardTitle>
           <CardDescription className="text-card-foreground/80">
             {canCreateRoom 
               ? "Create or join a game room to play with your friends or community"

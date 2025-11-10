@@ -30,7 +30,7 @@ const Auth = () => {
 
       toast({
         title: "Account Created!",
-        description: "You can now start playing GraceBingo",
+        description: "You can now start playing BINGO with Friends",
       });
 
       navigate("/");
@@ -81,7 +81,7 @@ const Auth = () => {
           <div className="flex justify-center mb-2">
             <Sparkles className="w-12 h-12 text-primary" />
           </div>
-          <CardTitle className="text-4xl font-heading text-primary">GraceBingo</CardTitle>
+          <CardTitle className="text-4xl font-heading text-primary">BINGO with Friends</CardTitle>
           <CardDescription className="text-card-foreground/80">
             Sign in to start playing with your community
           </CardDescription>
