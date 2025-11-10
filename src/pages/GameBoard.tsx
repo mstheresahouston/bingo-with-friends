@@ -373,28 +373,39 @@ const GameBoard = () => {
       }
 
       // Clear winner information and reset multi-game progress
+      const updateData: any = { 
+        winner_player_id: null,
+        winner_announced_at: null,
+        four_corners_winner_id: null,
+        straight_winner_id: null,
+        diagonal_winner_id: null,
+        multi_game_progress: {
+          four_corners: false,
+          straight: false,
+          diagonal: false,
+          coverall: false
+        }
+      };
+
+      // Update win condition if changed
+      if (newWinCondition) {
+        updateData.win_condition = newWinCondition;
+      }
+
       const { error: roomError } = await supabase
         .from("game_rooms")
-        .update({ 
-          winner_player_id: null,
-          winner_announced_at: null,
-          four_corners_winner_id: null,
-          straight_winner_id: null,
-          diagonal_winner_id: null,
-          multi_game_progress: {
-            four_corners: false,
-            straight: false,
-            diagonal: false,
-            coverall: false
-          }
-        })
+        .update(updateData)
         .eq("id", gameRoom.id);
 
       if (roomError) throw roomError;
 
+      const winConditionMessage = newWinCondition 
+        ? ` New win condition: ${newWinCondition.replace('_', ' ')}.`
+        : '';
+
       toast({
         title: "New Game Started",
-        description: "All players keep their cards. Ready to play!",
+        description: `All players keep their cards. Ready to play!${winConditionMessage}`,
       });
 
       loadGameData();

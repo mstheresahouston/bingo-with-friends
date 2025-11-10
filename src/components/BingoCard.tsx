@@ -272,12 +272,19 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
             .update(updateData)
             .eq("id", playerFullData.room_id);
 
-          // Award prize
+          // Fetch latest player data to ensure accurate prize accumulation
+          const { data: latestPlayerData } = await supabase
+            .from("players")
+            .select("score, total_praise_dollars")
+            .eq("id", playerId)
+            .single();
+
+          // Award prize with fresh data
           await supabase
             .from("players")
             .update({ 
-              score: (playerFullData.score || 0) + 1,
-              total_praise_dollars: (playerFullData.total_praise_dollars || 0) + prizeAmount
+              score: (latestPlayerData?.score || 0) + 1,
+              total_praise_dollars: (latestPlayerData?.total_praise_dollars || 0) + prizeAmount
             })
             .eq("id", playerId);
 
@@ -360,12 +367,19 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
             .is("winner_player_id", null);
         }
 
-        // Update player score and prize
+        // Fetch latest player data to ensure accurate prize accumulation
+        const { data: latestPlayerData } = await supabase
+          .from("players")
+          .select("score, total_praise_dollars")
+          .eq("id", playerId)
+          .single();
+
+        // Update player score and prize with fresh data
         await supabase
           .from("players")
           .update({ 
-            score: (playerFullData.score || 0) + 1,
-            total_praise_dollars: (playerFullData.total_praise_dollars || 0) + splitPrize
+            score: (latestPlayerData?.score || 0) + 1,
+            total_praise_dollars: (latestPlayerData?.total_praise_dollars || 0) + splitPrize
           })
           .eq("id", playerId);
 
