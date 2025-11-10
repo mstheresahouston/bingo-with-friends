@@ -14,6 +14,7 @@ import { ResetGameDialog } from "@/components/ResetGameDialog";
 import Chat from "@/components/Chat";
 import { Crown, LogOut, Volume2, VolumeX } from "lucide-react";
 import { speakCall } from "@/lib/sounds";
+import logo from "@/assets/logo.png";
 
 const GameBoard = () => {
   const { roomCode } = useParams();
@@ -454,7 +455,8 @@ const GameBoard = () => {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle className="text-3xl font-heading text-primary flex items-center gap-2">
-                  🎟️ BINGO with Friends
+                  <img src={logo} alt="BINGO with Friends" className="w-10 h-10" />
+                  BINGO with Friends
                   {isHost && <Crown className="w-6 h-6 text-accent" />}
                 </CardTitle>
                 <CardDescription className="text-card-foreground/80">
