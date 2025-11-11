@@ -122,22 +122,67 @@ serve(async (req) => {
   }
 
   try {
-    const { roomId, callValue } = await req.json()
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Missing authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
+    const token = authHeader.replace('Bearer ', '')
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get game room info
-    const { data: room } = await supabaseClient
+    // Verify the user
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const { roomId, callValue } = await req.json()
+
+    // Validate input
+    if (!roomId || typeof roomId !== 'string') {
+      return new Response(JSON.stringify({ error: 'Invalid roomId' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!callValue || (typeof callValue !== 'string' && typeof callValue !== 'number')) {
+      return new Response(JSON.stringify({ error: 'Invalid callValue' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Get game room info and verify the user is the host
+    const { data: room, error: roomError } = await supabaseClient
       .from('game_rooms')
-      .select('win_condition')
+      .select('win_condition, host_id')
       .eq('id', roomId)
       .single()
 
-    if (!room) {
-      throw new Error('Room not found')
+    if (roomError || !room) {
+      return new Response(JSON.stringify({ error: 'Room not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Verify the user is the host of the room
+    if (room.host_id !== user.id) {
+      return new Response(JSON.stringify({ error: 'Forbidden: Only the room host can process AI players' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // Get all AI players in the room (those with names ending in "Bot")
