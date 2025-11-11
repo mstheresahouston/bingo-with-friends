@@ -274,6 +274,10 @@ export type Database = {
         Args: { _player_id: string; _user_id: string }
         Returns: boolean
       }
+      create_player: {
+        Args: { _card_count: number; _player_name: string; _room_id: string }
+        Returns: string
+      }
       get_prize_value_for_condition: {
         Args: { condition: string }
         Returns: number

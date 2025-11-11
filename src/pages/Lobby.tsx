@@ -160,19 +160,24 @@ const Lobby = () => {
         gameRoom = data;
       }
 
-      // Create player record
-      const { data: playerData, error: playerError } = await supabase
-        .from("players")
-        .insert({
-          room_id: gameRoom.id,
-          user_id: user.id,
-          player_name: playerName,
-          card_count: parseInt(cardCount),
-        })
-        .select()
-        .single();
+      // Create player record using secure function
+      const { data: playerId, error: playerError } = await supabase
+        .rpc("create_player", {
+          _room_id: gameRoom.id,
+          _player_name: playerName,
+          _card_count: parseInt(cardCount),
+        });
 
       if (playerError) throw playerError;
+
+      // Fetch the player data we just created
+      const { data: playerData, error: fetchError } = await supabase
+        .from("players")
+        .select()
+        .eq("id", playerId)
+        .single();
+
+      if (fetchError) throw fetchError;
 
       // Generate bingo cards
       const cards = [];
