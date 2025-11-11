@@ -5,6 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { z } from "zod";
+
+const messageSchema = z.object({
+  message: z.string().trim().min(1, "Message cannot be empty").max(500, "Message must be less than 500 characters"),
+});
 
 interface ChatProps {
   roomId: string;
@@ -71,6 +77,16 @@ const Chat = ({ roomId, playerName }: ChatProps) => {
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
 
+    const result = messageSchema.safeParse({ message: newMessage });
+    if (!result.success) {
+      toast({
+        title: "Invalid Message",
+        description: result.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -80,7 +96,7 @@ const Chat = ({ roomId, playerName }: ChatProps) => {
         room_id: roomId,
         user_id: user.id,
         player_name: playerName,
-        message: newMessage.trim(),
+        message: result.data.message,
       });
 
     if (error) {

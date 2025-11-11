@@ -270,6 +270,10 @@ export type Database = {
     }
     Functions: {
       can_create_room: { Args: { _user_id: string }; Returns: boolean }
+      can_view_player: {
+        Args: { _player_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_prize_value_for_condition: {
         Args: { condition: string }
         Returns: number
