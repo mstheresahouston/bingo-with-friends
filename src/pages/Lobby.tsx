@@ -202,20 +202,34 @@ const Lobby = () => {
           const aiPlayerNames = ["Grace Bot", "Faith Bot", "Hope Bot"];
 
           for (let i = 0; i < parseInt(aiPlayerCount); i++) {
-            const { data: aiPlayerData, error: aiPlayerError } = await supabase
-              .from("players")
-              .insert({
-                room_id: gameRoom.id,
-                user_id: null, // AI players have no user_id
-                player_name: aiPlayerNames[i],
-                card_count: 1,
-              })
-              .select()
-              .single();
+            // Create AI player using secure function
+            const { data: aiPlayerId, error: aiPlayerError } = await supabase
+              .rpc("create_ai_player", {
+                _room_id: gameRoom.id,
+                _player_name: aiPlayerNames[i],
+                _card_count: 1,
+              });
 
             if (aiPlayerError) {
               console.error("AI player insert error:", aiPlayerError);
+              toast({
+                title: "Error",
+                description: `Failed to create ${aiPlayerNames[i]}`,
+                variant: "destructive",
+              });
               continue; // Skip this AI and continue starting the game
+            }
+
+            // Fetch the AI player data we just created
+            const { data: aiPlayerData, error: fetchError } = await supabase
+              .from("players")
+              .select()
+              .eq("id", aiPlayerId)
+              .single();
+
+            if (fetchError) {
+              console.error("AI player fetch error:", fetchError);
+              continue;
             }
 
             // Generate one card for each AI player
