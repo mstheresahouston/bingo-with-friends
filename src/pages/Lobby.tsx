@@ -193,34 +193,44 @@ const Lobby = () => {
 
       // Create AI players if requested and this is a new room (only hosts can add AI)
       if (!roomCode.trim() && parseInt(aiPlayerCount) > 0 && userRole === "host") {
-        const aiPlayerNames = ["Grace Bot", "Faith Bot", "Hope Bot"];
-        const aiPlayers = [];
+        try {
+          const aiPlayerNames = ["Grace Bot", "Faith Bot", "Hope Bot"];
 
-        for (let i = 0; i < parseInt(aiPlayerCount); i++) {
-          const { data: aiPlayerData, error: aiPlayerError } = await supabase
-            .from("players")
-            .insert({
-              room_id: gameRoom.id,
-              user_id: null, // AI players have no user_id
-              player_name: aiPlayerNames[i],
-              card_count: 1,
-            })
-            .select()
-            .single();
+          for (let i = 0; i < parseInt(aiPlayerCount); i++) {
+            const { data: aiPlayerData, error: aiPlayerError } = await supabase
+              .from("players")
+              .insert({
+                room_id: gameRoom.id,
+                user_id: null, // AI players have no user_id
+                player_name: aiPlayerNames[i],
+                card_count: 1,
+              })
+              .select()
+              .single();
 
-          if (aiPlayerError) throw aiPlayerError;
+            if (aiPlayerError) {
+              console.error("AI player insert error:", aiPlayerError);
+              continue; // Skip this AI and continue starting the game
+            }
 
-          // Generate one card for each AI player
-          const aiCardData = generateBingoCard(gameType);
-          const { error: aiCardError } = await supabase
-            .from("bingo_cards")
-            .insert({
-              player_id: aiPlayerData.id,
-              card_data: aiCardData,
-              marked_cells: [],
-            });
+            // Generate one card for each AI player
+            const aiCardData = generateBingoCard(gameRoom.game_type);
+            const { error: aiCardError } = await supabase
+              .from("bingo_cards")
+              .insert({
+                player_id: aiPlayerData.id,
+                card_data: aiCardData,
+                marked_cells: [],
+              });
 
-          if (aiCardError) throw aiCardError;
+            if (aiCardError) {
+              console.error("AI card insert error:", aiCardError);
+              continue;
+            }
+          }
+        } catch (e) {
+          console.error("AI setup error:", e);
+          toast({ title: "AI players skipped", description: "Couldn't add AI players due to permissions." });
         }
       }
 
