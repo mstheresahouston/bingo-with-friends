@@ -5,12 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { z } from "zod";
 
-const messageSchema = z.object({
-  message: z.string().trim().min(1, "Message cannot be empty").max(500, "Message must be less than 500 characters"),
-});
+const messageSchema = z.string().trim().min(1, "Message cannot be empty").max(500, "Message must be less than 500 characters");
 
 interface ChatProps {
   roomId: string;
@@ -75,15 +73,10 @@ const Chat = ({ roomId, playerName }: ChatProps) => {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
-
-    const result = messageSchema.safeParse({ message: newMessage });
+    // Validate message
+    const result = messageSchema.safeParse(newMessage);
     if (!result.success) {
-      toast({
-        title: "Invalid Message",
-        description: result.error.errors[0].message,
-        variant: "destructive",
-      });
+      toast.error(result.error.errors[0].message);
       return;
     }
 
@@ -96,7 +89,7 @@ const Chat = ({ roomId, playerName }: ChatProps) => {
         room_id: roomId,
         user_id: user.id,
         player_name: playerName,
-        message: result.data.message,
+        message: result.data,
       });
 
     if (error) {
@@ -142,6 +135,7 @@ const Chat = ({ roomId, playerName }: ChatProps) => {
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
             className="bg-background/50 border-border text-foreground"
+            maxLength={500}
           />
           <Button
             onClick={sendMessage}
