@@ -7,6 +7,7 @@ import Lobby from "./pages/Lobby";
 import Auth from "./pages/Auth";
 import GameBoard from "./pages/GameBoard";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -17,9 +18,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Lobby />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/game/:roomCode" element={<GameBoard />} />
+          <Route path="/" element={<ProtectedRoute><Lobby /></ProtectedRoute>} />
+          <Route path="/game/:roomCode" element={<ProtectedRoute><GameBoard /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
