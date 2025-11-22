@@ -49,12 +49,6 @@ const GameBoard = () => {
   // AI Bot win flash state
   const [showAiBotFlash, setShowAiBotFlash] = useState(false);
   const [aiBotWinData, setAiBotWinData] = useState<{ botName: string; gameType: string } | null>(null);
-  const prevWinnerIdsRef = useRef<{
-    fourCorners?: string;
-    straight?: string;
-    diagonal?: string;
-    coverall?: string;
-  }>({});
 
   useEffect(() => {
     loadGameData();
@@ -246,13 +240,14 @@ const GameBoard = () => {
           table: "game_rooms",
         },
         async (payload) => {
-          // Check for AI bot wins in multi-game mode
-          const checkAiBotWin = async (winnerId: string | null, prevWinnerId: string | null, gameType: string) => {
-            if (winnerId && winnerId !== prevWinnerId) {
+          // Check for AI bot wins in multi-game mode - only when winner changes from null to a value
+          const checkAiBotWin = async (newWinnerId: string | null, oldWinnerId: string | null, gameType: string) => {
+            // Only trigger if there's a NEW winner (changed from null to a value)
+            if (newWinnerId && !oldWinnerId) {
               const { data: winnerData } = await supabase
                 .from("players")
                 .select("player_name")
-                .eq("id", winnerId)
+                .eq("id", newWinnerId)
                 .single();
 
               if (winnerData && winnerData.player_name.includes("Bot")) {
@@ -262,20 +257,20 @@ const GameBoard = () => {
             }
           };
 
-          // Check each game type for new AI bot wins
+          // Check each game type for new AI bot wins using payload.old values
           await checkAiBotWin(
             payload.new.four_corners_winner_id,
-            prevWinnerIdsRef.current.fourCorners,
+            payload.old.four_corners_winner_id,
             'four_corners'
           );
           await checkAiBotWin(
             payload.new.straight_winner_id,
-            prevWinnerIdsRef.current.straight,
+            payload.old.straight_winner_id,
             'straight'
           );
           await checkAiBotWin(
             payload.new.diagonal_winner_id,
-            prevWinnerIdsRef.current.diagonal,
+            payload.old.diagonal_winner_id,
             'diagonal'
           );
           
@@ -297,14 +292,6 @@ const GameBoard = () => {
               }
             }
           }
-
-          // Update previous winner IDs
-          prevWinnerIdsRef.current = {
-            fourCorners: payload.new.four_corners_winner_id,
-            straight: payload.new.straight_winner_id,
-            diagonal: payload.new.diagonal_winner_id,
-            coverall: payload.new.winner_player_id,
-          };
 
           loadGameData();
         }

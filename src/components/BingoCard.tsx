@@ -80,6 +80,32 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
     return true;
   };
 
+  const handleClearBoard = async () => {
+    setMarkedCells([]);
+    
+    // Update in database
+    try {
+      const { error } = await supabase
+        .from("bingo_cards")
+        .update({ marked_cells: [] })
+        .eq("id", card.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Board Cleared",
+        description: "All marks have been removed from this card",
+      });
+    } catch (error) {
+      console.error("Error clearing board:", error);
+      toast({
+        title: "Error",
+        description: "Failed to clear board",
+        variant: "destructive",
+      });
+    }
+  };
+
   const toggleCell = async (rowIndex: number, colIndex: number) => {
     const cellIndex = rowIndex * 5 + colIndex;
     const cell = cardData[rowIndex][colIndex];
@@ -656,13 +682,23 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
           )}
         </div>
 
-        <Button
-          onClick={handleClaimBingo}
-          className="w-full bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity font-heading text-lg py-6"
-          size="lg"
-        >
-          🎉 Claim Bingo! 🎉
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleClearBoard}
+            variant="outline"
+            className="flex-1 border-border hover:bg-muted font-heading"
+            size="lg"
+          >
+            Clear Board
+          </Button>
+          <Button
+            onClick={handleClaimBingo}
+            className="flex-[2] bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity font-heading text-lg py-6"
+            size="lg"
+          >
+            🎉 Claim Bingo! 🎉
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
