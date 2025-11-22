@@ -7,23 +7,26 @@ interface LeaderboardProps {
 }
 
 export const Leaderboard = ({ players, currentPlayerId }: LeaderboardProps) => {
+  // Show only top 3 players
+  const topPlayers = players.slice(0, 3);
+  
   return (
     <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
       <CardHeader>
         <CardTitle className="font-heading text-card-foreground flex items-center gap-2">
           <Trophy className="w-5 h-5 text-accent" />
-          🏆 Leaderboard
+          🏆 Top Winners
         </CardTitle>
         <CardDescription className="text-card-foreground/80">
-          Games won & Praise Dollars earned
+          Ranked by Praise Dollars earned
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {players.length === 0 ? (
-            <p className="text-center text-card-foreground/60 py-4">No players yet</p>
+          {topPlayers.length === 0 ? (
+            <p className="text-center text-card-foreground/60 py-4">No winners yet</p>
           ) : (
-            players.map((player, index) => {
+            topPlayers.map((player, index) => {
               const isAI = player.player_name.endsWith("Bot");
               return (
                 <div

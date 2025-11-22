@@ -110,11 +110,12 @@ const GameBoard = () => {
 
       setPlayer(playerData);
 
-      // Get all players
+      // Get all players sorted by total praise dollars
       const { data: allPlayers } = await supabase
         .from("players")
         .select()
         .eq("room_id", room.id)
+        .order("total_praise_dollars", { ascending: false })
         .order("score", { ascending: false });
 
       setPlayers(allPlayers || []);
@@ -200,6 +201,22 @@ const GameBoard = () => {
           // Only append the new call to avoid full reload affecting card rendering
           const newCall = payload.new;
           setCalls((prev) => [...prev, newCall]);
+        }
+      )
+      .subscribe();
+
+    const cardsChannel = supabase
+      .channel(`cards-${roomCode}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "bingo_cards",
+        },
+        async (payload) => {
+          // Reload when cards are updated (e.g., when game is reset)
+          loadGameData();
         }
       )
       .subscribe();
@@ -296,6 +313,7 @@ const GameBoard = () => {
 
     return () => {
       supabase.removeChannel(callsChannel);
+      supabase.removeChannel(cardsChannel);
       supabase.removeChannel(playersChannel);
       supabase.removeChannel(roomsChannel);
     };
@@ -501,6 +519,10 @@ const GameBoard = () => {
           <div className="lg:col-span-2 space-y-4">
             <WinConditionDisplay 
               winCondition={gameRoom.win_condition}
+              gameRoomId={gameRoom.id}
+              fourCornersWinnerId={gameRoom.four_corners_winner_id}
+              straightWinnerId={gameRoom.straight_winner_id}
+              diagonalWinnerId={gameRoom.diagonal_winner_id}
               multiGameProgress={gameRoom.multi_game_progress}
             />
             <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">

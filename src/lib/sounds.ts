@@ -78,7 +78,7 @@ export const speakCall = (
       else if (num >= 46 && num <= 60) letter = "G";
       else if (num >= 61 && num <= 75) letter = "O";
       
-      utterance.text = `${letter} ${num}`;
+      utterance.text = `${letter}, ${num}`;
     } else {
       // For words, just say the word
       utterance.text = value;
