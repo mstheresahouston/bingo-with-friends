@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { playBingoSound } from "@/lib/sounds";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WIN_CONDITIONS } from "@/lib/winConditions";
 
 interface BingoCardProps {
   card: any;
@@ -13,12 +14,7 @@ interface BingoCardProps {
   playerId: string;
   playerName: string;
   praiseDollarValue: number;
-  multiGameProgress?: {
-    four_corners: boolean;
-    straight: boolean;
-    diagonal: boolean;
-    coverall: boolean;
-  };
+  multiGameProgress?: Record<string, boolean>;
 }
 
 export const BingoCard = ({ card, calls, winCondition, playerId, playerName, praiseDollarValue, multiGameProgress }: BingoCardProps) => {
@@ -38,45 +34,19 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
   // Determine which cells are part of the winning pattern
   const isPartOfPattern = (rowIndex: number, colIndex: number): boolean => {
     const cellIndex = rowIndex * 5 + colIndex;
+    const config = WIN_CONDITIONS[winCondition];
     
-    if (winCondition === "four_corners") {
-      return cellIndex === 0 || cellIndex === 4 || cellIndex === 20 || cellIndex === 24;
+    if (config) {
+      const patternCells = config.getCells();
+      return patternCells.includes(cellIndex);
     }
     
-    if (winCondition === "diagonal") {
-      // Main diagonal (top-left to bottom-right) or anti-diagonal (top-right to bottom-left)
-      return rowIndex === colIndex || rowIndex + colIndex === 4;
+    if (winCondition === "multi_game" || winCondition === "custom_progressive") {
+      // Show all cells for progressive
+      return true;
     }
     
-    if (winCondition === "coverall") {
-      return true; // All cells
-    }
-    
-    if (winCondition === "multi_game") {
-      // Only highlight patterns that haven't been completed yet
-      const progress = multiGameProgress || { four_corners: false, straight: false, diagonal: false, coverall: false };
-      
-      // If coverall not complete, show all cells
-      if (!progress.coverall) return true;
-      
-      // If diagonal not complete, show diagonal cells
-      if (!progress.diagonal && (rowIndex === colIndex || rowIndex + colIndex === 4)) return true;
-      
-      // If four_corners not complete, show corner cells
-      if (!progress.four_corners && (cellIndex === 0 || cellIndex === 4 || cellIndex === 20 || cellIndex === 24)) return true;
-      
-      // If straight not complete, show all cells (any line could win)
-      if (!progress.straight) return true;
-      
-      return false; // All patterns complete
-    }
-    
-    if (winCondition === "block_of_four") {
-      // Highlight all possible 2x2 blocks (show that any block works)
-      return true; // Show all cells as potential
-    }
-    
-    // For straight line, all cells could be part of a winning line
+    // Default: all cells
     return true;
   };
 
@@ -203,15 +173,15 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
       // Get current room state
       const { data: roomCheck } = await supabase
         .from("game_rooms")
-        .select("winner_player_id, praise_dollar_value, win_condition, multi_game_progress")
+        .select("winner_player_id, praise_dollar_value, win_condition, multi_game_progress, winner_announced_at")
         .eq("id", playerFullData.room_id)
         .single();
 
       if (!roomCheck) throw new Error("Room not found");
 
       // For multi-game mode, handle pattern-specific wins
-      if (roomCheck.win_condition === 'multi_game') {
-        const progress = (roomCheck.multi_game_progress as any) || { four_corners: false, straight: false, diagonal: false, coverall: false };
+      if (roomCheck.win_condition === 'multi_game' || roomCheck.win_condition === 'custom_progressive') {
+        const progress = (roomCheck.multi_game_progress as any) || {};
         const markedSet = new Set(markedCells);
         let patternWon: string | null = null;
         let prizeAmount = 0;
@@ -226,71 +196,34 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
 
         if (!winnerCheck) throw new Error("Room not found");
 
-        // Determine which pattern was completed
-        if (!progress.four_corners && !winnerCheck.four_corners_winner_id) {
-          const corners = [0, 4, 20, 24];
-          if (corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree)) {
-            patternWon = 'four_corners';
-            prizeAmount = 125;
-            updateData.four_corners_winner_id = playerId;
-          }
-        }
-        if (!patternWon && !progress.straight && !winnerCheck.straight_winner_id) {
-          for (let i = 0; i < 5; i++) {
-            let rowComplete = true;
-            let colComplete = true;
-            for (let j = 0; j < 5; j++) {
-              const rowIndex = i * 5 + j;
-              const colIndex = j * 5 + i;
-              if (!markedSet.has(rowIndex) && !cardData[i][j].isFree) rowComplete = false;
-              if (!markedSet.has(colIndex) && !cardData[j][i].isFree) colComplete = false;
+        // Check patterns in order - use WIN_CONDITIONS for checking
+        const patternsToCheck = ['four_corners', 'straight', 'diagonal', 'coverall', 'any_four', 'letter_h', 'letter_e', 'letter_l', 'letter_i', 'outside_edge', 'block_of_four'];
+        
+        for (const pattern of patternsToCheck) {
+          if (progress[pattern]) continue; // Already won
+          
+          const config = WIN_CONDITIONS[pattern];
+          if (!config) continue;
+          
+          if (config.checkPattern(markedSet, cardData)) {
+            patternWon = pattern;
+            prizeAmount = pattern === 'straight' ? 150 : config.defaultPrize;
+            
+            // Set the appropriate winner ID field
+            if (pattern === 'four_corners') updateData.four_corners_winner_id = playerId;
+            else if (pattern === 'straight') updateData.straight_winner_id = playerId;
+            else if (pattern === 'diagonal') updateData.diagonal_winner_id = playerId;
+            else if (pattern === 'coverall') {
+              updateData.winner_player_id = playerId;
+              updateData.winner_announced_at = new Date().toISOString();
             }
-            if (rowComplete || colComplete) {
-              patternWon = 'straight';
-              prizeAmount = 100;
-              updateData.straight_winner_id = playerId;
-              break;
-            }
-          }
-        }
-        if (!patternWon && !progress.diagonal && !winnerCheck.diagonal_winner_id) {
-          let diag1Complete = true;
-          let diag2Complete = true;
-          for (let i = 0; i < 5; i++) {
-            const diag1Index = i * 5 + i;
-            const diag2Index = i * 5 + (4 - i);
-            if (!markedSet.has(diag1Index) && !cardData[i][i].isFree) diag1Complete = false;
-            if (!markedSet.has(diag2Index) && !cardData[i][4 - i].isFree) diag2Complete = false;
-          }
-          if (diag1Complete || diag2Complete) {
-            patternWon = 'diagonal';
-            prizeAmount = 100;
-            updateData.diagonal_winner_id = playerId;
-          }
-        }
-        if (!patternWon && !progress.coverall && !winnerCheck.winner_player_id) {
-          let hasCoverall = true;
-          for (let i = 0; i < 5; i++) {
-            for (let j = 0; j < 5; j++) {
-              const cellIndex = i * 5 + j;
-              if (!markedSet.has(cellIndex) && !cardData[i][j].isFree) {
-                hasCoverall = false;
-                break;
-              }
-            }
-            if (!hasCoverall) break;
-          }
-          if (hasCoverall) {
-            patternWon = 'coverall';
-            prizeAmount = 350;
-            updateData.winner_player_id = playerId;
-            updateData.winner_announced_at = new Date().toISOString();
+            break;
           }
         }
 
         if (patternWon) {
           // Update multi-game progress
-          const updatedProgress = { ...progress, [patternWon as string]: true };
+          const updatedProgress = { ...progress, [patternWon]: true };
           updateData.multi_game_progress = updatedProgress;
           
           await supabase
@@ -316,15 +249,8 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
 
           playBingoSound();
 
-          const patternNames: Record<string, string> = {
-            four_corners: 'Four Corners',
-            straight: 'Straight Line',
-            diagonal: 'Diagonal',
-            coverall: 'Coverall'
-          };
-
           toast({
-            title: `🎉 ${patternNames[patternWon]} BINGO! 🎉`,
+            title: `🎉 ${WIN_CONDITIONS[patternWon]?.label || patternWon} BINGO! 🎉`,
             description: `Congratulations ${playerName}! You won $${prizeAmount} Praise Dollars!`,
           });
         } else {
@@ -335,7 +261,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
           });
         }
       } else {
-        // Single-pattern game mode with prize splitting
+        // Single-pattern game mode with 10-second claim window for prize splitting
         const winType = roomCheck.win_condition;
         
         // Check if this player already claimed
@@ -356,16 +282,16 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
           return;
         }
 
-        // Check existing winners (within last 3 seconds for fair prize splitting)
-        const threeSecondsAgo = new Date(Date.now() - 3000).toISOString();
+        // Check existing winners (within 10 seconds for fair prize splitting)
+        const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
         const { data: recentWinners } = await supabase
           .from("game_winners")
           .select("player_id")
           .eq("room_id", playerFullData.room_id)
           .eq("win_type", winType)
-          .gte("claimed_at", threeSecondsAgo);
+          .gte("claimed_at", tenSecondsAgo);
 
-        const totalPrize = roomCheck.praise_dollar_value || 100;
+        const totalPrize = roomCheck.praise_dollar_value || praiseDollarValue || 100;
         const numberOfWinners = (recentWinners?.length || 0) + 1;
         const splitPrize = Math.floor(totalPrize / numberOfWinners);
 
@@ -413,7 +339,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
 
         const prizeMessage = numberOfWinners > 1 
           ? `Prize split ${numberOfWinners} ways: $${splitPrize} each!`
-          : `You won $${splitPrize} Praise Dollars!`;
+          : `You won $${splitPrize} Praise Dollars! Other players have 10 seconds to also claim.`;
 
         toast({
           title: "🎉 BINGO CLAIMED! 🎉",
@@ -432,122 +358,28 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
 
   const checkBingo = (marked: number[]) => {
     const markedSet = new Set(marked);
+    const config = WIN_CONDITIONS[winCondition];
     
-    if (winCondition === "coverall") {
-      // Check if all 25 cells are marked
-      for (let i = 0; i < 5; i++) {
-        for (let j = 0; j < 5; j++) {
-          const cellIndex = i * 5 + j;
-          if (!markedSet.has(cellIndex) && !cardData[i][j].isFree) {
-            return false;
-          }
-        }
-      }
-      return true;
+    // Use the centralized win condition checker if available
+    if (config) {
+      return config.checkPattern(markedSet, cardData);
     }
-
-    if (winCondition === "four_corners") {
-      // Check all four corners: [0,0], [0,4], [4,0], [4,4]
-      const corners = [0, 4, 20, 24]; // top-left, top-right, bottom-left, bottom-right
-      return corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree);
-    }
-
-    if (winCondition === "block_of_four") {
-      // Check for any 2x2 block
-      for (let i = 0; i < 4; i++) {
-        for (let j = 0; j < 4; j++) {
-          const indices = [
-            i * 5 + j,
-            i * 5 + j + 1,
-            (i + 1) * 5 + j,
-            (i + 1) * 5 + j + 1
-          ];
-          const blockComplete = indices.every(index => 
-            markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree
-          );
-          if (blockComplete) return true;
+    
+    // For multi-game/progressive, check each pattern
+    if (winCondition === "multi_game" || winCondition === "custom_progressive") {
+      const progress = multiGameProgress || {};
+      
+      // Check patterns in order
+      for (const [pattern, patternConfig] of Object.entries(WIN_CONDITIONS)) {
+        if (progress[pattern]) continue; // Already won
+        if (patternConfig.checkPattern(markedSet, cardData)) {
+          return true;
         }
       }
       return false;
     }
 
-    if (winCondition === "diagonal") {
-      // Check both diagonals
-      let diag1Complete = true;
-      let diag2Complete = true;
-      for (let i = 0; i < 5; i++) {
-        const diag1Index = i * 5 + i;
-        const diag2Index = i * 5 + (4 - i);
-        
-        if (!markedSet.has(diag1Index) && !cardData[i][i].isFree) {
-          diag1Complete = false;
-        }
-        if (!markedSet.has(diag2Index) && !cardData[i][4 - i].isFree) {
-          diag2Complete = false;
-        }
-      }
-      return diag1Complete || diag2Complete;
-    }
-
-    if (winCondition === "multi_game") {
-      // Check each pattern individually - can win on any pattern
-      const progress = multiGameProgress || { four_corners: false, straight: false, diagonal: false, coverall: false };
-      
-      // Check four corners (if not already won)
-      if (!progress.four_corners) {
-        const corners = [0, 4, 20, 24];
-        const hasFourCorners = corners.every(index => markedSet.has(index) || cardData[Math.floor(index / 5)][index % 5].isFree);
-        if (hasFourCorners) return true;
-      }
-      
-      // Check straight line (row or column) (if not already won)
-      if (!progress.straight) {
-        for (let i = 0; i < 5; i++) {
-          let rowComplete = true;
-          let colComplete = true;
-          for (let j = 0; j < 5; j++) {
-            const rowIndex = i * 5 + j;
-            const colIndex = j * 5 + i;
-            if (!markedSet.has(rowIndex) && !cardData[i][j].isFree) rowComplete = false;
-            if (!markedSet.has(colIndex) && !cardData[j][i].isFree) colComplete = false;
-          }
-          if (rowComplete || colComplete) return true;
-        }
-      }
-      
-      // Check diagonal (if not already won)
-      if (!progress.diagonal) {
-        let diag1Complete = true;
-        let diag2Complete = true;
-        for (let i = 0; i < 5; i++) {
-          const diag1Index = i * 5 + i;
-          const diag2Index = i * 5 + (4 - i);
-          if (!markedSet.has(diag1Index) && !cardData[i][i].isFree) diag1Complete = false;
-          if (!markedSet.has(diag2Index) && !cardData[i][4 - i].isFree) diag2Complete = false;
-        }
-        if (diag1Complete || diag2Complete) return true;
-      }
-      
-      // Check coverall (if not already won)
-      if (!progress.coverall) {
-        let hasCoverall = true;
-        for (let i = 0; i < 5; i++) {
-          for (let j = 0; j < 5; j++) {
-            const cellIndex = i * 5 + j;
-            if (!markedSet.has(cellIndex) && !cardData[i][j].isFree) {
-              hasCoverall = false;
-              break;
-            }
-          }
-          if (!hasCoverall) break;
-        }
-        if (hasCoverall) return true;
-      }
-      
-      return false;
-    }
-
-    // Default: straight line (rows, columns, diagonals)
+    // Fallback for straight line (rows, columns, diagonals)
     // Check rows
     for (let i = 0; i < 5; i++) {
       let rowComplete = true;
@@ -594,22 +426,14 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
 
   // Get pattern description
   const getPatternDescription = () => {
-    switch (winCondition) {
-      case "straight":
-        return "Complete any row, column, or diagonal";
-      case "four_corners":
-        return "Mark all four corner squares";
-      case "block_of_four":
-        return "Mark any 2x2 block of squares";
-      case "diagonal":
-        return "Complete either diagonal line";
-      case "coverall":
-        return "Mark all squares on the card";
-      case "multi_game":
-        return "Progressive: Corners → Line → Diagonal → Coverall";
-      default:
-        return "Complete the winning pattern";
+    const config = WIN_CONDITIONS[winCondition];
+    if (config) {
+      return config.description;
     }
+    if (winCondition === "multi_game" || winCondition === "custom_progressive") {
+      return "Progressive: Complete patterns in sequence";
+    }
+    return "Complete the winning pattern";
   };
 
   return (
@@ -663,9 +487,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
                       ? "bg-accent text-accent-foreground border-accent cursor-default"
                       : isMarked
                       ? "bg-primary text-primary-foreground border-primary shadow-lg scale-95"
-                      : isPattern && winCondition === "four_corners"
-                      ? "bg-card text-card-foreground border-accent/60 hover:border-secondary hover:scale-105 ring-2 ring-accent/30"
-                      : isPattern && winCondition === "diagonal"
+                      : isPattern && (winCondition === "four_corners" || winCondition === "diagonal" || winCondition.startsWith("letter_") || winCondition === "outside_edge")
                       ? "bg-card text-card-foreground border-accent/60 hover:border-secondary hover:scale-105 ring-2 ring-accent/30"
                       : "bg-card text-card-foreground border-border hover:border-secondary hover:scale-105"
                   )}
@@ -673,7 +495,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
                 >
                   {cell.value}
                   {/* Pattern indicator dot for specific patterns */}
-                  {!isMarked && isPattern && (winCondition === "four_corners" || winCondition === "diagonal") && (
+                  {!isMarked && isPattern && (winCondition === "four_corners" || winCondition === "diagonal" || winCondition.startsWith("letter_") || winCondition === "outside_edge") && (
                     <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
                   )}
                 </button>

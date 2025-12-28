@@ -439,6 +439,9 @@ const GameBoard = () => {
         winnerName={winnerName}
         isOpen={showWinner}
         onClose={() => setShowWinner(false)}
+        prizeAmount={praiseDollarValue}
+        winType={gameRoom?.win_condition}
+        showClaimWindow={true}
       />
       
       {aiBotWinData && (
