@@ -53,6 +53,10 @@ const GameBoard = () => {
   // Claim window state - pauses auto-calling during 10-second claim period
   const [isClaimWindowActive, setIsClaimWindowActive] = useState(false);
   const claimWindowTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // New game indicator state
+  const [showNewGameBanner, setShowNewGameBanner] = useState(false);
+  const newGameTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadGameData();
@@ -427,6 +431,15 @@ const GameBoard = () => {
         description: `All players keep their cards. Ready to play!${winConditionMessage}`,
       });
 
+      // Show new game banner for 5 seconds
+      setShowNewGameBanner(true);
+      if (newGameTimerRef.current) {
+        clearTimeout(newGameTimerRef.current);
+      }
+      newGameTimerRef.current = setTimeout(() => {
+        setShowNewGameBanner(false);
+      }, 5000);
+
       loadGameData();
     } catch (error) {
       console.error("Error resetting game:", error);
@@ -467,6 +480,17 @@ const GameBoard = () => {
             setAiBotWinData(null);
           }}
         />
+      )}
+      
+      {/* New Game Banner */}
+      {showNewGameBanner && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-primary text-primary-foreground px-6 py-3 rounded-full shadow-lg flex items-center gap-2 font-heading">
+            <span className="text-xl">🎮</span>
+            <span className="font-bold">NEW GAME!</span>
+            <span className="text-sm opacity-90">You can claim bingo again</span>
+          </div>
+        </div>
       )}
       
       <div className="max-w-7xl mx-auto space-y-6">
