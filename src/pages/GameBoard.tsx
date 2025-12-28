@@ -468,6 +468,7 @@ const GameBoard = () => {
         prizeAmount={praiseDollarValue}
         winType={gameRoom?.win_condition}
         showClaimWindow={true}
+        roomId={gameRoom?.id}
       />
       
       {aiBotWinData && (
