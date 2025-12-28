@@ -15,9 +15,10 @@ interface CallBoardProps {
   callSpeed: number;
   voiceVolume: number;
   hasWinner: boolean;
+  isClaimWindowActive?: boolean;
 }
 
-export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, callSpeed, voiceVolume, hasWinner }: CallBoardProps) => {
+export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, callSpeed, voiceVolume, hasWinner, isClaimWindowActive = false }: CallBoardProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAllCalls, setShowAllCalls] = useState(false);
   const { toast } = useToast();
@@ -89,8 +90,8 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
     const availableItems = items.filter((item) => !calledValues.includes(item));
     const allItemsCalled = availableItems.length === 0;
 
-    // Clear any existing timer when auto-call is toggled off, game ends, or all items called
-    if (!isAutoCall || hasWinner || !isHost || allItemsCalled) {
+    // Clear any existing timer when auto-call is toggled off, game ends, claim window active, or all items called
+    if (!isAutoCall || hasWinner || isClaimWindowActive || !isHost || allItemsCalled) {
       if (autoCallTimerRef.current) {
         clearTimeout(autoCallTimerRef.current);
         autoCallTimerRef.current = null;
@@ -98,8 +99,8 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
       return;
     }
 
-    // Only set up timer if auto-call is enabled and no timer is running
-    if (isAutoCall && isHost && !hasWinner && !allItemsCalled && !autoCallTimerRef.current) {
+    // Only set up timer if auto-call is enabled, no claim window, and no timer is running
+    if (isAutoCall && isHost && !hasWinner && !isClaimWindowActive && !allItemsCalled && !autoCallTimerRef.current) {
       autoCallTimerRef.current = setTimeout(() => {
         generateCall().then(() => {
           // Clear timer reference after call is made
@@ -115,7 +116,7 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
         autoCallTimerRef.current = null;
       }
     };
-  }, [isHost, isAutoCall, callSpeed, isGenerating, hasWinner, calls]);
+  }, [isHost, isAutoCall, callSpeed, isGenerating, hasWinner, isClaimWindowActive, calls]);
 
   // Format call display with letter
   const formatCall = (value: string) => {
