@@ -278,7 +278,7 @@ const GameBoard = () => {
             'diagonal'
           );
           
-          // Check for coverall winner
+          // Check for any winner (not just coverall)
           if (payload.new.winner_player_id && !payload.old.winner_player_id) {
             // Start the 10-second claim window
             setIsClaimWindowActive(true);
@@ -297,7 +297,7 @@ const GameBoard = () => {
 
             if (winnerData) {
               if (winnerData.player_name.includes("Bot")) {
-                setAiBotWinData({ botName: winnerData.player_name, gameType: 'coverall' });
+                setAiBotWinData({ botName: winnerData.player_name, gameType: payload.new.win_condition || 'bingo' });
                 setShowAiBotFlash(true);
               } else {
                 setWinnerName(winnerData.player_name);
@@ -570,7 +570,7 @@ const GameBoard = () => {
               isAutoCall={isAutoCall}
               callSpeed={callSpeed}
               voiceVolume={voiceVolume}
-              hasWinner={!!gameRoom?.winner_player_id}
+              hasWinner={!!gameRoom?.winner_player_id || !!gameRoom?.winner_announced_at}
               isClaimWindowActive={isClaimWindowActive}
             />
             {isHost && (
