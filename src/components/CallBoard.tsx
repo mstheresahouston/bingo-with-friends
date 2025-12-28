@@ -182,7 +182,7 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
           ) : (
             <>
               {/* Show most recent call prominently */}
-              <div className="p-4 rounded-lg border-2 bg-accent text-accent-foreground border-accent animate-pulse">
+              <div className="p-4 rounded-lg border-2 bg-accent text-accent-foreground border-accent">
                 <div className="flex justify-between items-center">
                   <span className="font-heading font-bold text-xl">
                     {formatCall(calls[calls.length - 1].call_value)}
