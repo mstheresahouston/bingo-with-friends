@@ -317,7 +317,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
         const claimWindowStart = gameStartTime > tenSecondsAgo ? gameStartTime : tenSecondsAgo;
         const { data: recentWinners } = await supabase
           .from("game_winners")
-          .select("player_id")
+          .select("id, player_id, prize_amount")
           .eq("room_id", playerFullData.room_id)
           .eq("win_type", winType)
           .gte("claimed_at", claimWindowStart);
@@ -326,7 +326,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
         const numberOfWinners = (recentWinners?.length || 0) + 1;
         const splitPrize = Math.floor(totalPrize / numberOfWinners);
 
-        // Record this winner
+        // Record this winner with the split prize
         const { error: winnerError } = await supabase
           .from("game_winners")
           .insert({
@@ -348,6 +348,37 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
             })
             .eq("id", playerFullData.room_id)
             .is("winner_player_id", null);
+        }
+
+        // If there are existing winners, update their prize amounts and player totals
+        if (recentWinners && recentWinners.length > 0) {
+          for (const existingWinner of recentWinners) {
+            const prizeReduction = existingWinner.prize_amount - splitPrize;
+            
+            // Update the prize amount in game_winners
+            await supabase
+              .from("game_winners")
+              .update({ prize_amount: splitPrize })
+              .eq("id", existingWinner.id);
+            
+            // Reduce the player's total_praise_dollars by the difference
+            if (prizeReduction > 0) {
+              const { data: existingPlayerData } = await supabase
+                .from("players")
+                .select("total_praise_dollars")
+                .eq("id", existingWinner.player_id)
+                .single();
+              
+              if (existingPlayerData) {
+                await supabase
+                  .from("players")
+                  .update({ 
+                    total_praise_dollars: Math.max(0, (existingPlayerData.total_praise_dollars || 0) - prizeReduction)
+                  })
+                  .eq("id", existingWinner.player_id);
+              }
+            }
+          }
         }
 
         // Fetch latest player data to ensure accurate prize accumulation

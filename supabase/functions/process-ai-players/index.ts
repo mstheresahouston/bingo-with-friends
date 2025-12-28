@@ -375,7 +375,7 @@ serve(async (req) => {
               const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
               const { data: recentWinners } = await supabaseClient
                 .from('game_winners')
-                .select('player_id')
+                .select('id, player_id, prize_amount')
                 .eq('room_id', roomId)
                 .eq('win_type', room.win_condition)
                 .gte('claimed_at', tenSecondsAgo);
@@ -399,6 +399,37 @@ serve(async (req) => {
                   win_type: room.win_condition,
                   prize_amount: splitPrize,
                 });
+              
+              // Update existing winners' prize amounts
+              if (recentWinners && recentWinners.length > 0) {
+                for (const existingWinner of recentWinners) {
+                  const prizeReduction = existingWinner.prize_amount - splitPrize;
+                  
+                  // Update the prize amount in game_winners
+                  await supabaseClient
+                    .from('game_winners')
+                    .update({ prize_amount: splitPrize })
+                    .eq('id', existingWinner.id);
+                  
+                  // Reduce the player's total_praise_dollars by the difference
+                  if (prizeReduction > 0) {
+                    const { data: existingPlayerData } = await supabaseClient
+                      .from('players')
+                      .select('total_praise_dollars')
+                      .eq('id', existingWinner.player_id)
+                      .single();
+                    
+                    if (existingPlayerData) {
+                      await supabaseClient
+                        .from('players')
+                        .update({ 
+                          total_praise_dollars: Math.max(0, (existingPlayerData.total_praise_dollars || 0) - prizeReduction)
+                        })
+                        .eq('id', existingWinner.player_id);
+                    }
+                  }
+                }
+              }
               
               // Set as first winner if no winner yet
               if (!roomCheck.winner_player_id) {
