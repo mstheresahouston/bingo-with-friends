@@ -28,19 +28,8 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
     
     setIsGenerating(true);
     try {
-      let items: string[] = [];
-      
-      if (gameRoom.game_type === "numbers") {
-        items = Array.from({ length: 75 }, (_, i) => (i + 1).toString());
-      } else {
-        items = [
-          "Grace", "Faith", "Hope", "Love", "Joy",
-          "Peace", "Mercy", "Trust", "Strength", "Wisdom",
-          "Courage", "Prayer", "Blessing", "Light", "Spirit",
-          "Heart", "Soul", "Truth", "Life", "Praise",
-          "Glory", "Heaven", "Angels", "Miracle", "Goodness"
-        ];
-      }
+      // Always use numbers (1-75)
+      const items = Array.from({ length: 75 }, (_, i) => (i + 1).toString());
 
       const calledValues = calls.map((c) => c.call_value);
       const availableItems = items.filter((item) => !calledValues.includes(item));
@@ -48,13 +37,14 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
       if (availableItems.length === 0) {
         setIsGenerating(false);
         toast({
-          title: "All Items Called",
-          description: `All ${gameRoom.game_type} have been called!`,
+          title: "All Numbers Called",
+          description: "All 75 numbers have been called!",
         });
         return;
       }
 
       const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+      const isFirstCall = calls.length === 0;
 
       const { error } = await supabase.from("game_calls").insert({
         room_id: gameRoom.id,
@@ -65,7 +55,7 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
       if (error) throw error;
 
       playCallSound(voiceVolume);
-      speakCall(randomItem, gameRoom.game_type, voiceGender, voiceVolume);
+      speakCall(randomItem, "numbers", voiceGender, voiceVolume, isFirstCall);
       
       // Trigger AI player processing
       supabase.functions.invoke('process-ai-players', {
@@ -94,18 +84,7 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
   // Auto-call functionality
   useEffect(() => {
     // Check if all items have been called
-    let items: string[] = [];
-    if (gameRoom.game_type === "numbers") {
-      items = Array.from({ length: 75 }, (_, i) => (i + 1).toString());
-    } else {
-      items = [
-        "Grace", "Faith", "Hope", "Love", "Joy",
-        "Peace", "Mercy", "Trust", "Strength", "Wisdom",
-        "Courage", "Prayer", "Blessing", "Light", "Spirit",
-        "Heart", "Soul", "Truth", "Life", "Praise",
-        "Glory", "Heaven", "Angels", "Miracle", "Goodness"
-      ];
-    }
+    const items = Array.from({ length: 75 }, (_, i) => (i + 1).toString());
     const calledValues = calls.map((c) => c.call_value);
     const availableItems = items.filter((item) => !calledValues.includes(item));
     const allItemsCalled = availableItems.length === 0;
@@ -138,6 +117,18 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
     };
   }, [isHost, isAutoCall, callSpeed, isGenerating, hasWinner, calls]);
 
+  // Format call display with letter
+  const formatCall = (value: string) => {
+    const num = parseInt(value);
+    let letter = "";
+    if (num >= 1 && num <= 15) letter = "B";
+    else if (num >= 16 && num <= 30) letter = "I";
+    else if (num >= 31 && num <= 45) letter = "N";
+    else if (num >= 46 && num <= 60) letter = "G";
+    else if (num >= 61 && num <= 75) letter = "O";
+    return `${letter}-${num}`;
+  };
+
   return (
     <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
       <CardHeader>
@@ -146,7 +137,7 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
           📣 Live Calls
         </CardTitle>
         <CardDescription className="text-card-foreground/80">
-          Watch the called {gameRoom.game_type} appear in real time
+          Watch the called numbers appear in real time
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -171,7 +162,7 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
               <div className="p-4 rounded-lg border-2 bg-accent text-accent-foreground border-accent animate-pulse">
                 <div className="flex justify-between items-center">
                   <span className="font-heading font-bold text-xl">
-                    {calls[calls.length - 1].call_value}
+                    {formatCall(calls[calls.length - 1].call_value)}
                   </span>
                   <span className="text-sm opacity-75">
                     Latest Call #{calls[calls.length - 1].call_number}
@@ -211,7 +202,7 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
                         className="p-3 rounded-lg border-2 bg-card text-card-foreground border-border"
                       >
                         <div className="flex justify-between items-center">
-                          <span className="font-heading font-bold">{call.call_value}</span>
+                          <span className="font-heading font-bold">{formatCall(call.call_value)}</span>
                           <span className="text-sm opacity-75">#{call.call_number}</span>
                         </div>
                       </div>

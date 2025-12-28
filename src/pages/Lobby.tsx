@@ -10,12 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Crown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import logo from "@/assets/logo.png";
+import { WIN_CONDITIONS, getDefaultPrize } from "@/lib/winConditions";
 
 const Lobby = () => {
   const [playerName, setPlayerName] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [cardCount, setCardCount] = useState("1");
-  const [gameType, setGameType] = useState("words");
   const [winCondition, setWinCondition] = useState("straight");
   const [aiPlayerCount, setAiPlayerCount] = useState("0");
   const [isLoading, setIsLoading] = useState(false);
@@ -96,15 +96,8 @@ const Lobby = () => {
         // Create new room
         finalRoomCode = generateRoomCode();
         
-        // Set prize value based on win condition
-        const prizeValues: Record<string, number> = {
-          straight: 100,
-          diagonal: 100,
-          four_corners: 125,
-          block_of_four: 150,
-          coverall: 350,
-          multi_game: 675, // Sum of all: 125 + 100 + 100 + 350
-        };
+        // Get default prize for selected win condition
+        const defaultPrize = getDefaultPrize(winCondition);
         
         const { data, error } = await supabase
           .from("game_rooms")
@@ -112,9 +105,9 @@ const Lobby = () => {
             room_code: finalRoomCode,
             host_id: user.id,
             status: "waiting",
-            game_type: gameType,
+            game_type: "numbers", // Always numbers now
             win_condition: winCondition,
-            praise_dollar_value: prizeValues[winCondition] || 100,
+            praise_dollar_value: defaultPrize,
           })
           .select()
           .single();
@@ -179,10 +172,10 @@ const Lobby = () => {
 
       if (fetchError) throw fetchError;
 
-      // Generate bingo cards
+      // Generate bingo cards (always numbers now)
       const cards = [];
       for (let i = 0; i < parseInt(cardCount); i++) {
-        const cardData = generateBingoCard(gameRoom.game_type);
+        const cardData = generateBingoCard();
         cards.push({
           player_id: playerData.id,
           card_data: cardData,
@@ -233,7 +226,7 @@ const Lobby = () => {
             }
 
             // Generate one card for each AI player
-            const aiCardData = generateBingoCard(gameRoom.game_type);
+            const aiCardData = generateBingoCard();
             const { error: aiCardError } = await supabase
               .from("bingo_cards")
               .insert({
@@ -271,58 +264,34 @@ const Lobby = () => {
     }
   };
 
-  const generateBingoCard = (type: string) => {
+  const generateBingoCard = () => {
     const card = [];
     
-    if (type === "numbers") {
-      // Traditional BINGO: B(1-15), I(16-30), N(31-45), G(46-60), O(61-75)
-      const columns = [
-        Array.from({ length: 15 }, (_, i) => (i + 1).toString()),        // B: 1-15
-        Array.from({ length: 15 }, (_, i) => (i + 16).toString()),       // I: 16-30
-        Array.from({ length: 15 }, (_, i) => (i + 31).toString()),       // N: 31-45
-        Array.from({ length: 15 }, (_, i) => (i + 46).toString()),       // G: 46-60
-        Array.from({ length: 15 }, (_, i) => (i + 61).toString()),       // O: 61-75
-      ];
+    // Traditional BINGO: B(1-15), I(16-30), N(31-45), G(46-60), O(61-75)
+    const columns = [
+      Array.from({ length: 15 }, (_, i) => (i + 1).toString()),        // B: 1-15
+      Array.from({ length: 15 }, (_, i) => (i + 16).toString()),       // I: 16-30
+      Array.from({ length: 15 }, (_, i) => (i + 31).toString()),       // N: 31-45
+      Array.from({ length: 15 }, (_, i) => (i + 46).toString()),       // G: 46-60
+      Array.from({ length: 15 }, (_, i) => (i + 61).toString()),       // O: 61-75
+    ];
 
-      // Shuffle each column
-      const shuffledColumns = columns.map(col => [...col].sort(() => Math.random() - 0.5));
+    // Shuffle each column
+    const shuffledColumns = columns.map(col => [...col].sort(() => Math.random() - 0.5));
 
-      // Build 5x5 card
-      for (let i = 0; i < 5; i++) {
-        const row = [];
-        for (let j = 0; j < 5; j++) {
-          if (i === 2 && j === 2) {
-            row.push({ value: "FREE", isFree: true });
-          } else {
-            row.push({ value: shuffledColumns[j][i], isFree: false });
-          }
+    // Build 5x5 card
+    for (let i = 0; i < 5; i++) {
+      const row = [];
+      for (let j = 0; j < 5; j++) {
+        if (i === 2 && j === 2) {
+          row.push({ value: "FREE", isFree: true });
+        } else {
+          row.push({ value: shuffledColumns[j][i], isFree: false });
         }
-        card.push(row);
       }
-    } else {
-      // Words version
-      const words = [
-        "Grace", "Faith", "Hope", "Love", "Joy",
-        "Peace", "Mercy", "Trust", "Strength", "Wisdom",
-        "Courage", "Prayer", "Blessing", "Light", "Spirit",
-        "Heart", "Soul", "Truth", "Life", "Praise",
-        "Glory", "Heaven", "Angels", "Miracle", "Goodness"
-      ];
-
-      const shuffled = [...words].sort(() => Math.random() - 0.5);
-      for (let i = 0; i < 5; i++) {
-        const row = [];
-        for (let j = 0; j < 5; j++) {
-          const index = i * 5 + j;
-          if (i === 2 && j === 2) {
-            row.push({ value: "FREE", isFree: true });
-          } else {
-            row.push({ value: shuffled[index > 12 ? index - 1 : index], isFree: false });
-          }
-        }
-        card.push(row);
-      }
+      card.push(row);
     }
+    
     return card;
   };
 
@@ -367,7 +336,7 @@ const Lobby = () => {
             </Label>
             <Input
               id="roomCode"
-              placeholder={canCreateRoom ? "e.g., FAITH23" : "Enter room code to join"}
+              placeholder={canCreateRoom ? "e.g., BINGO23" : "Enter room code to join"}
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
               className="bg-background/50 border-border text-foreground"
@@ -393,31 +362,24 @@ const Lobby = () => {
           {!roomCode && canCreateRoom && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="gameType">Game Type</Label>
-                <Select value={gameType} onValueChange={setGameType}>
-                  <SelectTrigger className="bg-background/50 border-border text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="words">Words</SelectItem>
-                    <SelectItem value="numbers">Numbers</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="winCondition">Win Condition</Label>
                 <Select value={winCondition} onValueChange={setWinCondition}>
                   <SelectTrigger className="bg-background/50 border-border text-foreground">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="straight">Straight Line (any direction)</SelectItem>
-                    <SelectItem value="four_corners">Four Corners</SelectItem>
-                    <SelectItem value="block_of_four">Block of Four</SelectItem>
-                    <SelectItem value="diagonal">Diagonal Only</SelectItem>
-                    <SelectItem value="coverall">Cover All (full card)</SelectItem>
-                    <SelectItem value="multi_game">Multi-Game (Progressive)</SelectItem>
+                  <SelectContent className="bg-card border-border max-h-[300px]">
+                    <SelectItem value="straight">Straight Line - $100</SelectItem>
+                    <SelectItem value="diagonal">Diagonal Only - $100</SelectItem>
+                    <SelectItem value="four_corners">Four Corners - $125</SelectItem>
+                    <SelectItem value="block_of_four">Block of Four - $150</SelectItem>
+                    <SelectItem value="any_four">Any Four Numbers - $350</SelectItem>
+                    <SelectItem value="letter_h">Letter H - $350</SelectItem>
+                    <SelectItem value="letter_e">Letter E - $350</SelectItem>
+                    <SelectItem value="letter_l">Letter L - $350</SelectItem>
+                    <SelectItem value="letter_i">Letter I - $350</SelectItem>
+                    <SelectItem value="outside_edge">Outside Edge - $350</SelectItem>
+                    <SelectItem value="coverall">Coverall (Full card) - $350</SelectItem>
+                    <SelectItem value="multi_game">Progressive (All patterns) - $675</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -3,60 +3,42 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Circle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { WIN_CONDITIONS } from "@/lib/winConditions";
 
 interface WinConditionDisplayProps {
   winCondition: string;
   gameRoomId?: string;
+  customPrize?: number; // The actual prize set by host via slider
   fourCornersWinnerId?: string | null;
   straightWinnerId?: string | null;
   diagonalWinnerId?: string | null;
-  multiGameProgress?: {
-    four_corners: boolean;
-    straight: boolean;
-    diagonal: boolean;
-    coverall: boolean;
-  };
+  multiGameProgress?: Record<string, boolean>;
+  progressivePatterns?: string[];
 }
-
-const WIN_CONDITION_LABELS: Record<string, string> = {
-  straight: "Straight Line (Any Direction)",
-  four_corners: "Four Corners",
-  block_of_four: "Block of Four",
-  diagonal: "Diagonal Only",
-  coverall: "Cover All (Full Card)",
-  multi_game: "Multi-Game (Progressive)",
-};
-
-const WIN_CONDITION_PRIZES: Record<string, number> = {
-  straight: 100,
-  diagonal: 100,
-  four_corners: 125,
-  block_of_four: 150,
-  coverall: 350,
-  multi_game: 675, // Total of all four games: 125 + 100 + 100 + 350
-};
 
 export const WinConditionDisplay = ({ 
   winCondition, 
   gameRoomId,
+  customPrize,
   fourCornersWinnerId,
   straightWinnerId,
   diagonalWinnerId,
-  multiGameProgress 
+  multiGameProgress,
+  progressivePatterns,
 }: WinConditionDisplayProps) => {
-  const isMultiGame = winCondition === "multi_game";
-  const prizeValue = WIN_CONDITION_PRIZES[winCondition] || 100;
-  const [winnerNames, setWinnerNames] = useState<{
-    fourCorners?: string;
-    straight?: string;
-    diagonal?: string;
-  }>({});
+  const isMultiGame = winCondition === "multi_game" || winCondition === "custom_progressive";
+  const [winnerNames, setWinnerNames] = useState<Record<string, string>>({});
+
+  // Calculate display prize - use custom prize if set, otherwise use default
+  const defaultPrize = WIN_CONDITIONS[winCondition]?.defaultPrize || 100;
+  const displayPrize = customPrize || defaultPrize;
+  const isCustomPrize = customPrize && customPrize !== defaultPrize;
 
   useEffect(() => {
     const fetchWinnerNames = async () => {
       if (!isMultiGame || !gameRoomId) return;
 
-      const names: any = {};
+      const names: Record<string, string> = {};
 
       if (fourCornersWinnerId) {
         const { data } = await supabase
@@ -64,7 +46,7 @@ export const WinConditionDisplay = ({
           .select("player_name")
           .eq("id", fourCornersWinnerId)
           .single();
-        if (data) names.fourCorners = data.player_name;
+        if (data) names.four_corners = data.player_name;
       }
 
       if (straightWinnerId) {
@@ -91,6 +73,19 @@ export const WinConditionDisplay = ({
     fetchWinnerNames();
   }, [isMultiGame, gameRoomId, fourCornersWinnerId, straightWinnerId, diagonalWinnerId]);
 
+  const getLabel = () => {
+    if (winCondition === "custom_progressive") {
+      return "Custom Progressive";
+    }
+    if (winCondition === "multi_game") {
+      return "Multi-Game (Progressive)";
+    }
+    return WIN_CONDITIONS[winCondition]?.label || winCondition;
+  };
+
+  // Get patterns for progressive display
+  const patterns = progressivePatterns || ['four_corners', 'straight', 'diagonal', 'coverall'];
+
   return (
     <Card className="backdrop-blur-sm bg-card/95 border-2 border-accent">
       <CardHeader className="pb-3">
@@ -98,17 +93,29 @@ export const WinConditionDisplay = ({
           <CardTitle className="text-lg font-heading text-card-foreground">
             🎯 Current Game
           </CardTitle>
-          <Badge variant="secondary" className="text-lg font-bold">
-            ${prizeValue}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {isCustomPrize && (
+              <Badge variant="outline" className="text-xs text-accent border-accent">
+                Custom
+              </Badge>
+            )}
+            <Badge variant="secondary" className="text-lg font-bold">
+              ${displayPrize}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
           <div className="text-center">
             <p className="text-2xl font-bold text-primary">
-              {WIN_CONDITION_LABELS[winCondition]}
+              {getLabel()}
             </p>
+            {WIN_CONDITIONS[winCondition]?.description && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {WIN_CONDITIONS[winCondition].description}
+              </p>
+            )}
           </div>
 
           {isMultiGame && multiGameProgress && (
@@ -117,86 +124,38 @@ export const WinConditionDisplay = ({
                 Progressive Game Stages
               </p>
               <div className="grid grid-cols-2 gap-2">
-                <div className={`flex flex-col gap-1 p-2 rounded-md ${
-                  multiGameProgress.four_corners ? 'bg-accent/20' : 'bg-muted/50'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {multiGameProgress.four_corners ? (
-                      <CheckCircle2 className="w-5 h-5 text-accent" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-muted-foreground" />
-                    )}
-                    <span className={`text-sm ${
-                      multiGameProgress.four_corners ? 'text-accent font-semibold' : 'text-card-foreground'
-                    }`}>
-                      Four Corners
-                    </span>
-                  </div>
-                  {winnerNames.fourCorners && (
-                    <span className="text-xs text-accent ml-7">
-                      🏆 {winnerNames.fourCorners}
-                    </span>
-                  )}
-                </div>
-
-                <div className={`flex flex-col gap-1 p-2 rounded-md ${
-                  multiGameProgress.straight ? 'bg-accent/20' : 'bg-muted/50'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {multiGameProgress.straight ? (
-                      <CheckCircle2 className="w-5 h-5 text-accent" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-muted-foreground" />
-                    )}
-                    <span className={`text-sm ${
-                      multiGameProgress.straight ? 'text-accent font-semibold' : 'text-card-foreground'
-                    }`}>
-                      Straight Line
-                    </span>
-                  </div>
-                  {winnerNames.straight && (
-                    <span className="text-xs text-accent ml-7">
-                      🏆 {winnerNames.straight}
-                    </span>
-                  )}
-                </div>
-
-                <div className={`flex flex-col gap-1 p-2 rounded-md ${
-                  multiGameProgress.diagonal ? 'bg-accent/20' : 'bg-muted/50'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {multiGameProgress.diagonal ? (
-                      <CheckCircle2 className="w-5 h-5 text-accent" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-muted-foreground" />
-                    )}
-                    <span className={`text-sm ${
-                      multiGameProgress.diagonal ? 'text-accent font-semibold' : 'text-card-foreground'
-                    }`}>
-                      Diagonal
-                    </span>
-                  </div>
-                  {winnerNames.diagonal && (
-                    <span className="text-xs text-accent ml-7">
-                      🏆 {winnerNames.diagonal}
-                    </span>
-                  )}
-                </div>
-
-                <div className={`flex items-center gap-2 p-2 rounded-md ${
-                  multiGameProgress.coverall ? 'bg-accent/20' : 'bg-muted/50'
-                }`}>
-                  {multiGameProgress.coverall ? (
-                    <CheckCircle2 className="w-5 h-5 text-accent" />
-                  ) : (
-                    <Circle className="w-5 h-5 text-muted-foreground" />
-                  )}
-                  <span className={`text-sm ${
-                    multiGameProgress.coverall ? 'text-accent font-semibold' : 'text-card-foreground'
-                  }`}>
-                    Cover All
-                  </span>
-                </div>
+                {patterns.map((pattern) => {
+                  const isComplete = multiGameProgress[pattern];
+                  const config = WIN_CONDITIONS[pattern];
+                  const prize = pattern === 'straight' ? 150 : config?.defaultPrize || 100;
+                  
+                  return (
+                    <div 
+                      key={pattern}
+                      className={`flex flex-col gap-1 p-2 rounded-md ${
+                        isComplete ? 'bg-accent/20' : 'bg-muted/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {isComplete ? (
+                          <CheckCircle2 className="w-5 h-5 text-accent" />
+                        ) : (
+                          <Circle className="w-5 h-5 text-muted-foreground" />
+                        )}
+                        <span className={`text-sm ${
+                          isComplete ? 'text-accent font-semibold' : 'text-card-foreground'
+                        }`}>
+                          {config?.label?.split(' ')[0] || pattern} (${prize})
+                        </span>
+                      </div>
+                      {winnerNames[pattern] && (
+                        <span className="text-xs text-accent ml-7">
+                          🏆 {winnerNames[pattern]}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

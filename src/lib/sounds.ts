@@ -57,7 +57,8 @@ export const speakCall = (
   value: string,
   gameType: string,
   voiceGender: 'male' | 'female' = 'female',
-  volume: number = 1
+  volume: number = 1,
+  isFirstCall: boolean = false
 ) => {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   
@@ -78,13 +79,23 @@ export const speakCall = (
       else if (num >= 46 && num <= 60) letter = "G";
       else if (num >= 61 && num <= 75) letter = "O";
       
-      utterance.text = `${letter}, ${num}`;
+      // Add first call announcement if this is the first number
+      if (isFirstCall) {
+        utterance.text = `The first number for this game is: ${letter}. ${num}.`;
+      } else {
+        // Clear pause between letter and number for clarity
+        utterance.text = `${letter}. ${num}.`;
+      }
     } else {
       // For words, just say the word
-      utterance.text = value;
+      if (isFirstCall) {
+        utterance.text = `The first call for this game is: ${value}`;
+      } else {
+        utterance.text = value;
+      }
     }
     
-    utterance.rate = 0.9;
+    utterance.rate = 0.85; // Slightly slower for clarity
     // Use pitch to differentiate between male and female voices
     utterance.pitch = voiceGender === 'male' ? 0.7 : 1.2;
     utterance.volume = Math.max(0, Math.min(1, volume));

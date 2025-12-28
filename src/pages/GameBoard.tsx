@@ -484,7 +484,7 @@ const GameBoard = () => {
                 </Button>
                 {isHost && (
                   <ResetGameDialog 
-                    onReset={handleResetGame}
+                    onReset={(newWinCondition, progressivePatterns) => handleResetGame(newWinCondition)}
                     currentWinCondition={gameRoom.win_condition}
                   />
                 )}
@@ -507,6 +507,7 @@ const GameBoard = () => {
             <WinConditionDisplay 
               winCondition={gameRoom.win_condition}
               gameRoomId={gameRoom.id}
+              customPrize={praiseDollarValue}
               fourCornersWinnerId={gameRoom.four_corners_winner_id}
               straightWinnerId={gameRoom.straight_winner_id}
               diagonalWinnerId={gameRoom.diagonal_winner_id}
