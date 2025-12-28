@@ -488,7 +488,7 @@ const GameBoard = () => {
           <div className="bg-primary text-primary-foreground px-6 py-3 rounded-full shadow-lg flex items-center gap-2 font-heading">
             <span className="text-xl">🎮</span>
             <span className="font-bold">NEW GAME!</span>
-            <span className="text-sm opacity-90">You can claim bingo again</span>
+            <span className="text-sm opacity-90">Get ready for your first number</span>
           </div>
         </div>
       )}

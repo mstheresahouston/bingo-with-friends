@@ -29,6 +29,18 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
     
     setIsGenerating(true);
     try {
+      // Check if game already has a winner before making a call
+      const { data: roomCheck } = await supabase
+        .from("game_rooms")
+        .select("winner_player_id")
+        .eq("id", gameRoom.id)
+        .single();
+      
+      if (roomCheck?.winner_player_id) {
+        setIsGenerating(false);
+        return; // Game has ended, don't make more calls
+      }
+      
       // Fetch the latest calls from DB to avoid race conditions with stale state
       const { data: latestCalls, error: fetchError } = await supabase
         .from("game_calls")
