@@ -79,9 +79,9 @@ export const speakCall = (
       else if (num >= 46 && num <= 60) letter = "G";
       else if (num >= 61 && num <= 75) letter = "O";
       
-      // Add first call announcement if this is the first number
+      // Add first call announcement if this is the first ball
       if (isFirstCall) {
-        utterance.text = `The first number for this game is: ${letter}. ${num}.`;
+        utterance.text = `First ball: ${letter}. ${num}.`;
       } else {
         // Clear pause between letter and number for clarity
         utterance.text = `${letter}. ${num}.`;

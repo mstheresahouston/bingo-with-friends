@@ -49,6 +49,10 @@ const GameBoard = () => {
   // AI Bot win flash state
   const [showAiBotFlash, setShowAiBotFlash] = useState(false);
   const [aiBotWinData, setAiBotWinData] = useState<{ botName: string; gameType: string } | null>(null);
+  
+  // Claim window state - pauses auto-calling during 10-second claim period
+  const [isClaimWindowActive, setIsClaimWindowActive] = useState(false);
+  const claimWindowTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadGameData();
@@ -276,6 +280,15 @@ const GameBoard = () => {
           
           // Check for coverall winner
           if (payload.new.winner_player_id && !payload.old.winner_player_id) {
+            // Start the 10-second claim window
+            setIsClaimWindowActive(true);
+            if (claimWindowTimerRef.current) {
+              clearTimeout(claimWindowTimerRef.current);
+            }
+            claimWindowTimerRef.current = setTimeout(() => {
+              setIsClaimWindowActive(false);
+            }, 10000);
+            
             const { data: winnerData } = await supabase
               .from("players")
               .select("player_name")
@@ -558,6 +571,7 @@ const GameBoard = () => {
               callSpeed={callSpeed}
               voiceVolume={voiceVolume}
               hasWinner={!!gameRoom?.winner_player_id}
+              isClaimWindowActive={isClaimWindowActive}
             />
             {isHost && (
               <Card className="backdrop-blur-sm bg-card/95 border-2 border-secondary">
