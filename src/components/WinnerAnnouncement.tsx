@@ -81,16 +81,17 @@ export const WinnerAnnouncement = ({
               <p className="text-3xl font-heading font-bold text-primary">
                 {winnerName}
               </p>
-              {winType && (
-                <p className="text-lg text-muted-foreground">
-                  {winType.replace(/_/g, ' ').toUpperCase()} Winner!
-                </p>
-              )}
-              {prizeAmount && (
-                <p className="text-xl font-bold text-accent">
-                  Won ${prizeAmount} Praise Dollars!
-                </p>
-              )}
+            {winType && (
+              <p className="text-lg text-muted-foreground">
+                {winType.replace(/_/g, ' ').toUpperCase()} Winner!
+              </p>
+            )}
+            {/* Only show prize amount after claim window closes */}
+            {prizeAmount && (!showClaimWindow || claimCountdown === 0) && (
+              <p className="text-xl font-bold text-accent">
+                Won ${prizeAmount} Praise Dollars!
+              </p>
+            )}
             </div>
 
             {/* 10-second claim window indicator */}
