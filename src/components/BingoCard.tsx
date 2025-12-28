@@ -44,7 +44,21 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
   };
 
   const patternCells = getPatternCells();
-  const showPatternOverlay = ['letter_h', 'letter_e', 'letter_l', 'letter_i', 'outside_edge', 'four_corners', 'diagonal'].includes(winCondition);
+  const showPatternOverlay = ['letter_h', 'letter_e', 'letter_l', 'letter_i', 'outside_edge', 'four_corners', 'diagonal', 'block_of_four'].includes(winCondition);
+
+  // Calculate pattern progress
+  const patternCellsArray = Array.from(patternCells);
+  const markedPatternCells = patternCellsArray.filter(cellIndex => {
+    const row = Math.floor(cellIndex / 5);
+    const col = cellIndex % 5;
+    return markedCells.includes(cellIndex) || cardData[row]?.[col]?.isFree;
+  });
+  const patternProgress = { marked: markedPatternCells.length, total: patternCellsArray.length };
+
+  // Mini pattern diagram (5x5 grid representation)
+  const getPatternDiagram = (): boolean[] => {
+    return Array.from({ length: 25 }, (_, i) => patternCells.has(i));
+  };
 
   // Determine which cells are part of the winning pattern
   const isPartOfPattern = (rowIndex: number, colIndex: number): boolean => {
@@ -470,12 +484,46 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
           })}
         </div>
         
-        {/* Pattern Legend for letter patterns */}
+        {/* Pattern Legend with mini diagram and progress */}
         {showPatternOverlay && (
-          <div className="bg-accent/10 border border-accent/30 rounded-lg p-2 text-center">
-            <p className="text-xs text-accent font-medium">
-              🎯 Highlighted cells show the winning pattern
-            </p>
+          <div className="bg-accent/10 border border-accent/30 rounded-lg p-3 flex items-center justify-between gap-3">
+            {/* Mini pattern diagram */}
+            <div className="flex flex-col items-center gap-1">
+              <div className="grid grid-cols-5 gap-0.5">
+                {getPatternDiagram().map((isPattern, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "w-2 h-2 rounded-sm",
+                      isPattern 
+                        ? markedPatternCells.includes(i) 
+                          ? "bg-primary" 
+                          : "bg-accent"
+                        : "bg-muted/30"
+                    )}
+                  />
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground">Pattern</span>
+            </div>
+            
+            {/* Progress info */}
+            <div className="flex-1 text-center">
+              <p className="text-xs text-accent font-medium">
+                🎯 {WIN_CONDITIONS[winCondition]?.label || winCondition}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Highlighted cells = winning pattern
+              </p>
+            </div>
+            
+            {/* Progress counter */}
+            <div className="flex flex-col items-center">
+              <div className="text-lg font-bold text-accent">
+                {patternProgress.marked}/{patternProgress.total}
+              </div>
+              <span className="text-[10px] text-muted-foreground">Progress</span>
+            </div>
           </div>
         )}
         
