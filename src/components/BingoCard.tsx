@@ -31,23 +31,25 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
     setMarkedCells(card.marked_cells || []);
   }, [card.marked_cells]);
 
+  // Get pattern cells for visual highlighting
+  const getPatternCells = (): Set<number> => {
+    const config = WIN_CONDITIONS[winCondition];
+    if (config) {
+      return new Set(config.getCells());
+    }
+    if (winCondition === "multi_game" || winCondition === "custom_progressive") {
+      return new Set(Array.from({ length: 25 }, (_, i) => i));
+    }
+    return new Set(Array.from({ length: 25 }, (_, i) => i));
+  };
+
+  const patternCells = getPatternCells();
+  const showPatternOverlay = ['letter_h', 'letter_e', 'letter_l', 'letter_i', 'outside_edge', 'four_corners', 'diagonal'].includes(winCondition);
+
   // Determine which cells are part of the winning pattern
   const isPartOfPattern = (rowIndex: number, colIndex: number): boolean => {
     const cellIndex = rowIndex * 5 + colIndex;
-    const config = WIN_CONDITIONS[winCondition];
-    
-    if (config) {
-      const patternCells = config.getCells();
-      return patternCells.includes(cellIndex);
-    }
-    
-    if (winCondition === "multi_game" || winCondition === "custom_progressive") {
-      // Show all cells for progressive
-      return true;
-    }
-    
-    // Default: all cells
-    return true;
+    return patternCells.has(cellIndex);
   };
 
   const handleClearBoard = async () => {
@@ -468,6 +470,15 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
           })}
         </div>
         
+        {/* Pattern Legend for letter patterns */}
+        {showPatternOverlay && (
+          <div className="bg-accent/10 border border-accent/30 rounded-lg p-2 text-center">
+            <p className="text-xs text-accent font-medium">
+              🎯 Highlighted cells show the winning pattern
+            </p>
+          </div>
+        )}
+        
         {/* Bingo Grid */}
         <div className="grid grid-cols-5 gap-2 relative">
           {cardData.map((row: any[], rowIndex: number) =>
@@ -475,6 +486,7 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
               const cellIndex = rowIndex * 5 + colIndex;
               const isMarked = markedCells.includes(cellIndex) || cell.isFree;
               const isPattern = isPartOfPattern(rowIndex, colIndex);
+              const needsHighlight = showPatternOverlay && isPattern && !isMarked;
 
               return (
                 <button
@@ -486,17 +498,27 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
                     cell.isFree
                       ? "bg-accent text-accent-foreground border-accent cursor-default"
                       : isMarked
-                      ? "bg-primary text-primary-foreground border-primary shadow-lg scale-95"
-                      : isPattern && (winCondition === "four_corners" || winCondition === "diagonal" || winCondition.startsWith("letter_") || winCondition === "outside_edge")
-                      ? "bg-card text-card-foreground border-accent/60 hover:border-secondary hover:scale-105 ring-2 ring-accent/30"
+                      ? isPattern
+                        ? "bg-primary text-primary-foreground border-primary shadow-lg scale-95 ring-2 ring-accent"
+                        : "bg-primary text-primary-foreground border-primary shadow-lg scale-95"
+                      : needsHighlight
+                      ? "bg-accent/20 text-card-foreground border-accent hover:border-accent hover:scale-105 ring-2 ring-accent/50"
+                      : showPatternOverlay && !isPattern
+                      ? "bg-muted/30 text-muted-foreground border-border/50 hover:border-secondary hover:scale-105 opacity-60"
                       : "bg-card text-card-foreground border-border hover:border-secondary hover:scale-105"
                   )}
                   disabled={cell.isFree}
                 >
                   {cell.value}
-                  {/* Pattern indicator dot for specific patterns */}
-                  {!isMarked && isPattern && (winCondition === "four_corners" || winCondition === "diagonal" || winCondition.startsWith("letter_") || winCondition === "outside_edge") && (
-                    <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
+                  {/* Pattern indicator dot */}
+                  {needsHighlight && (
+                    <div className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full animate-pulse" />
+                  )}
+                  {/* Checkmark for marked pattern cells */}
+                  {isMarked && isPattern && !cell.isFree && showPatternOverlay && (
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full flex items-center justify-center text-[10px] text-accent-foreground">
+                      ✓
+                    </div>
                   )}
                 </button>
               );
