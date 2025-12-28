@@ -52,6 +52,20 @@ function checkBingo(card: BingoCard, winCondition: string): boolean {
     return false;
   }
 
+  if (winCondition === "any_four") {
+    // Matches the app logic: count marked cells including the FREE space.
+    let count = 0;
+    for (let i = 0; i < 5; i++) {
+      for (let j = 0; j < 5; j++) {
+        const cellIndex = i * 5 + j;
+        if (markedSet.has(cellIndex) || cardData[i][j].isFree) {
+          count++;
+        }
+      }
+    }
+    return count >= 4;
+  }
+
   if (winCondition === "diagonal") {
     let diag1Complete = true;
     let diag2Complete = true;
