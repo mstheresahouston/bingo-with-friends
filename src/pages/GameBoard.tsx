@@ -200,9 +200,19 @@ const GameBoard = () => {
           table: "game_calls",
         },
         async (payload) => {
-          // Only append the new call to avoid full reload affecting card rendering
-          const newCall = payload.new;
-          setCalls((prev) => [...prev, newCall]);
+          // Append the new call - ensure we have all required fields
+          const newCall = payload.new as any;
+          if (newCall && newCall.call_value && newCall.call_number !== undefined) {
+            setCalls((prev) => [...prev, newCall]);
+          } else {
+            // Fallback: reload all calls if payload is incomplete
+            const { data: freshCalls } = await supabase
+              .from("game_calls")
+              .select()
+              .eq("room_id", gameRoom?.id)
+              .order("call_number", { ascending: true });
+            if (freshCalls) setCalls(freshCalls);
+          }
         }
       )
       .subscribe();
