@@ -29,10 +29,17 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
     
     setIsGenerating(true);
     try {
+      // Fetch the latest calls from DB to avoid race conditions with stale state
+      const { data: latestCalls, error: fetchError } = await supabase
+        .from("game_calls")
+        .select("call_value")
+        .eq("room_id", gameRoom.id);
+      
+      if (fetchError) throw fetchError;
+      
       // Always use numbers (1-75)
       const items = Array.from({ length: 75 }, (_, i) => (i + 1).toString());
-
-      const calledValues = calls.map((c) => c.call_value);
+      const calledValues = (latestCalls || []).map((c) => c.call_value);
       const availableItems = items.filter((item) => !calledValues.includes(item));
 
       if (availableItems.length === 0) {
@@ -45,12 +52,12 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
       }
 
       const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
-      const isFirstCall = calls.length === 0;
+      const isFirstCall = calledValues.length === 0;
 
       const { error } = await supabase.from("game_calls").insert({
         room_id: gameRoom.id,
         call_value: randomItem,
-        call_number: calls.length + 1,
+        call_number: calledValues.length + 1,
       });
 
       if (error) throw error;
@@ -70,13 +77,16 @@ export const CallBoard = ({ calls, isHost, gameRoom, voiceGender, isAutoCall, ca
         title: "New Call!",
         description: `"${randomItem}" has been called`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating call:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate call",
-        variant: "destructive",
-      });
+      // Don't show error toast for duplicate key (race condition already handled)
+      if (error?.code !== '23505') {
+        toast({
+          title: "Error",
+          description: "Failed to generate call",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsGenerating(false);
     }
