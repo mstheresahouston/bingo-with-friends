@@ -280,13 +280,26 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
         // Single-pattern game mode with 10-second claim window for prize splitting
         const winType = roomCheck.win_condition;
         
-        // Check if this player already claimed
+        // Get the timestamp of the first call in this game session to identify current game
+        const { data: firstCall } = await supabase
+          .from("game_calls")
+          .select("created_at")
+          .eq("room_id", playerFullData.room_id)
+          .order("call_number", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        
+        // Only consider wins that were claimed after the current game started
+        const gameStartTime = firstCall?.created_at || new Date().toISOString();
+        
+        // Check if this player already claimed in the CURRENT game
         const { data: existingWin } = await supabase
           .from("game_winners")
           .select("id")
           .eq("room_id", playerFullData.room_id)
           .eq("player_id", playerId)
           .eq("win_type", winType)
+          .gte("claimed_at", gameStartTime)
           .maybeSingle();
 
         if (existingWin) {
@@ -298,14 +311,16 @@ export const BingoCard = ({ card, calls, winCondition, playerId, playerName, pra
           return;
         }
 
-        // Check existing winners (within 10 seconds for fair prize splitting)
+        // Check existing winners in CURRENT game (within 10 seconds for fair prize splitting)
         const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
+        // Use the later of: 10 seconds ago OR game start time
+        const claimWindowStart = gameStartTime > tenSecondsAgo ? gameStartTime : tenSecondsAgo;
         const { data: recentWinners } = await supabase
           .from("game_winners")
           .select("player_id")
           .eq("room_id", playerFullData.room_id)
           .eq("win_type", winType)
-          .gte("claimed_at", tenSecondsAgo);
+          .gte("claimed_at", claimWindowStart);
 
         const totalPrize = roomCheck.praise_dollar_value || praiseDollarValue || 100;
         const numberOfWinners = (recentWinners?.length || 0) + 1;
