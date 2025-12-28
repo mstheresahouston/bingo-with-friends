@@ -357,32 +357,72 @@ serve(async (req) => {
             // Check if there's already a winner
             const { data: roomCheck } = await supabaseClient
               .from('game_rooms')
-              .select('winner_player_id, praise_dollar_value')
+              .select('winner_player_id, praise_dollar_value, winner_announced_at')
               .eq('id', roomId)
               .single()
             
-            if (roomCheck && !roomCheck.winner_player_id) {
-              // Set this AI as the winner
-              await supabaseClient
-                .from('game_rooms')
-                .update({
-                  winner_player_id: aiPlayer.id,
-                  winner_announced_at: new Date().toISOString(),
-                })
-                .eq('id', roomId)
+            if (!roomCheck) continue;
+            
+            const totalPrize = roomCheck.praise_dollar_value || 100;
+            
+            // Check if we're within the 10-second claim window or if no winner yet
+            const now = new Date();
+            const winnerAnnouncedAt = roomCheck.winner_announced_at ? new Date(roomCheck.winner_announced_at) : null;
+            const isWithinClaimWindow = winnerAnnouncedAt && (now.getTime() - winnerAnnouncedAt.getTime()) < 10000;
+            
+            if (!roomCheck.winner_player_id || isWithinClaimWindow) {
+              // Get existing winners in the claim window
+              const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
+              const { data: recentWinners } = await supabaseClient
+                .from('game_winners')
+                .select('player_id')
+                .eq('room_id', roomId)
+                .eq('win_type', room.win_condition)
+                .gte('claimed_at', tenSecondsAgo);
               
-              const splitPrize = roomCheck.praise_dollar_value || 100
+              // Check if this AI already claimed
+              const alreadyClaimed = recentWinners?.some(w => w.player_id === aiPlayer.id);
+              if (alreadyClaimed) {
+                console.log(`${aiPlayer.player_name} already claimed bingo`);
+                continue;
+              }
+              
+              const numberOfWinners = (recentWinners?.length || 0) + 1;
+              const splitPrize = Math.floor(totalPrize / numberOfWinners);
+              
+              // Insert into game_winners table for prize splitting
+              await supabaseClient
+                .from('game_winners')
+                .insert({
+                  room_id: roomId,
+                  player_id: aiPlayer.id,
+                  win_type: room.win_condition,
+                  prize_amount: splitPrize,
+                });
+              
+              // Set as first winner if no winner yet
+              if (!roomCheck.winner_player_id) {
+                await supabaseClient
+                  .from('game_rooms')
+                  .update({
+                    winner_player_id: aiPlayer.id,
+                    winner_announced_at: new Date().toISOString(),
+                  })
+                  .eq('id', roomId);
+              }
               
               // Update AI player score and prize
               await supabaseClient
                 .from('players')
                 .update({ 
                   score: aiPlayer.score + 1,
-                  total_praise_dollars: splitPrize
+                  total_praise_dollars: (aiPlayer.total_praise_dollars || 0) + splitPrize
                 })
-                .eq('id', aiPlayer.id)
+                .eq('id', aiPlayer.id);
               
-              console.log(`${aiPlayer.player_name} won the game and received $${splitPrize} Praise Dollars!`)
+              console.log(`${aiPlayer.player_name} won the game and received $${splitPrize} Praise Dollars!`);
+            } else {
+              console.log(`${aiPlayer.player_name} got bingo but claim window expired`);
             }
           }
         }
